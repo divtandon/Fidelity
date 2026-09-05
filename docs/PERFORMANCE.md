@@ -70,7 +70,7 @@ here because a single smooth capture would overstate certainty.
   sooner after the first scroll, pointer, or keyboard interaction.
 - The current desktop particle field uses 12,000 deterministic particles.
   Compact mode uses 3,200, one device pixel per CSS pixel, lower-poly aperture
-  rings, simpler materials, and no decorative voxel edge pass.
+  rings, simpler materials, and a thinner voxel edge pass.
 - Desktop device-pixel ratio is capped at 1.5. The canvas stops rendering when
   the hero leaves the viewport, the document is hidden, WebGL is unavailable,
   or reduced motion is requested.
@@ -98,10 +98,15 @@ coverage of the same fallbacks and interaction boundary, run:
 npm run test:e2e
 ```
 
-Real-user monitoring would be the next step after deployment. In particular,
-compact Lighthouse measures the fast poster-first path; the post-interaction
-WebGL cost is represented by the frame-pacing probe and browser journey tests,
-not by the initial-load score.
+The original one-off frame-pacing probe was not committed. Its table above is a
+historical observation, not a directly reproducible benchmark artifact. A fresh
+performance pass should add a tracked probe and record its exact command before
+publishing new frame-pacing numbers.
+
+Real-user monitoring would be the next step after deployment. In the historical
+pass above, compact Lighthouse measured the poster-first path; the one-off
+frame-pacing sample and browser journeys supplied additional WebGL context that
+the initial-load score could not provide.
 
 ## Compact visual baseline
 
