@@ -17,7 +17,8 @@ export default defineConfig({
   },
   outputDir: "artifacts/playwright",
   webServer: {
-    command: "npm.cmd run dev -- --hostname 127.0.0.1 --port 3000",
+    // Node resolves `npm.cmd` on Windows itself. Linux CI needs the plain binary.
+    command: `${process.platform === "win32" ? "npm.cmd" : "npm"} run dev -- --hostname 127.0.0.1 --port 3000`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
