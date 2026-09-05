@@ -29,7 +29,11 @@ class ClassAccuracy:
     def delta_pp(self) -> float:
         """Candidate minus reference accuracy, in percentage points."""
 
-        return (self.candidate_accuracy - self.reference_accuracy) * 100.0
+        return (
+            (self.candidate_correct - self.reference_correct)
+            * 100.0
+            / self.sample_count
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

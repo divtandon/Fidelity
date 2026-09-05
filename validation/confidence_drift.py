@@ -33,8 +33,8 @@ class ConfidenceDriftResult:
 
 def _normalize_row(values: Iterable[float], name: str, row_index: int) -> list[float]:
     row = list(values)
-    if len(row) < 2:
-        raise ValueError(f"{name}[{row_index}] must contain at least two classes")
+    if not row:
+        raise ValueError(f"{name}[{row_index}] must contain at least one class")
     normalized: list[float] = []
     for column, value in enumerate(row):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
