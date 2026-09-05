@@ -91,10 +91,21 @@ img, svg { display: block; }
 .mobile-nav { display: none; }
 
 .hero {
-  position: relative; isolation: isolate; min-height: max(760px,100svh); overflow: hidden;
+  position: relative; isolation: isolate; height: 160svh; min-height: 1100px; overflow: clip; background: #e8e5f4;
+}
+.hero__stage {
+  position: sticky; top: 0; min-height: max(760px,100svh); height: 100svh; overflow: hidden;
   border: 4px solid #1a1a1f; background: #e8e5f4;
 }
 .hero__visual, .hero__wash { position: absolute; inset: 0; }
+.hero__visual { pointer-events: none; }
+.hero__wash { z-index: 2; pointer-events: none; }
+.compression-visual, .scene-poster, .compression-canvas { position: absolute; inset: 0; }
+.scene-poster { overflow: hidden; transition: opacity 700ms ease, filter 900ms ease, transform 1200ms var(--ease-out); }
+.compression-visual--live .scene-poster { transform: scale(1.025); filter: blur(11px) saturate(.72); opacity: .24; }
+.compression-canvas { z-index: 1; animation: scene-reveal 900ms var(--ease-out) both; }
+.compression-canvas canvas { width: 100% !important; height: 100% !important; }
+@keyframes scene-reveal { from { opacity: 0; } to { opacity: 1; } }
 .hero__visual img { object-fit: cover; object-position: center; filter: saturate(.95) contrast(.98); }
 .hero__wash {
   background:
@@ -189,6 +200,17 @@ img, svg { display: block; }
 }
 .scroll-cue i { display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid rgba(20,24,48,.22); border-radius: 50%; transition: transform 200ms var(--ease-out); }
 .scroll-cue:hover i { transform: translateY(3px); }
+.hero-stage-progress {
+  position: absolute; z-index: 4; top: 50%; right: 2rem; display: grid; width: 10.5rem;
+  grid-template-columns: 1.8rem 1fr; gap: .2rem .75rem; align-items: center;
+  transform: translateY(-50%); color: var(--ink-soft); font-family: var(--font-mono), monospace;
+  font-size: .56rem; letter-spacing: .07em; text-transform: uppercase;
+}
+.hero-stage-progress > span { color: var(--fp32-deep); }
+.hero-stage-progress > strong { font-size: .58rem; font-weight: 500; }
+.hero-stage-progress > div { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4,1fr); gap: .28rem; margin-top: .35rem; }
+.hero-stage-progress i { height: 2px; border-radius: 999px; background: rgba(20,24,48,.16); }
+.hero-stage-progress i.is-active { background: linear-gradient(90deg,var(--fp32),var(--int8)); }
 
 .signal-rail { border-bottom: 1px solid var(--line); background: var(--surface); }
 .signal-rail__inner {
@@ -291,7 +313,8 @@ img, svg { display: block; }
   .mobile-nav--open { transform: translateY(0) scale(1); visibility: visible; opacity: 1; pointer-events: auto; }
   .mobile-nav a { display: flex; align-items: center; justify-content: space-between; border-radius: 1rem; padding: .9rem 1rem; font-weight: 700; }
   .mobile-nav a:hover { background: var(--surface-soft); }
-  .hero { min-height: 900px; }
+  .hero { height: auto; min-height: 900px; overflow: hidden; }
+  .hero__stage { position: relative; height: auto; min-height: 900px; border-width: 3px; }
   .hero__content { min-height: 900px; align-content: start; padding-top: 9.5rem; }
   .hero__copy { width: min(100%,38rem); }
   .hero h1 { font-size: clamp(3.2rem,10vw,5.3rem); }
@@ -301,6 +324,7 @@ img, svg { display: block; }
   .hero-annotation--reference, .hero-annotation--aperture, .hero-annotation--candidate { display: none; }
   .proof-cluster { right: 1rem; bottom: 4.3rem; left: 1rem; width: auto; }
   .scroll-cue { display: none; }
+  .hero-stage-progress { display: none; }
   .editorial-intro { grid-template-columns: 1fr; gap: 2rem; }
   .editorial-intro__copy { max-width: 40rem; }
   .chapter-grid { grid-template-columns: 1fr; }
@@ -314,7 +338,8 @@ img, svg { display: block; }
 }
 
 @media (max-width: 560px) {
-  .hero { min-height: 940px; border-width: 2px; }
+  .hero { min-height: 940px; }
+  .hero__stage { min-height: 940px; border-width: 2px; }
   .hero__content { min-height: 940px; padding-top: 8.5rem; }
   .hero h1 { font-size: clamp(3rem,15vw,4.5rem); }
   .hero__lead { font-size: .91rem; line-height: 1.65; }

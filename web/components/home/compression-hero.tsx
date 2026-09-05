@@ -1,6 +1,11 @@
-import Image from "next/image";
+"use client";
+
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, BookOpen } from "lucide-react";
+import { useMotionValueEvent, useScroll } from "motion/react";
+
+import { CompressionVisual } from "@/components/three/compression-visual";
 
 const metrics = [
   { label: "FP32", value: "94.82%", tone: "blue" },
@@ -9,11 +14,26 @@ const metrics = [
   { label: "p-value", value: "0.184", tone: "neutral" },
 ];
 
+const stages = ["Reference model", "Preparing compression", "Quantizing to INT8", "Comparing predictions"];
+
 export function CompressionHero() {
+  const heroRef = useRef<HTMLElement>(null);
+  const [activeStage, setActiveStage] = useState(0);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end end"],
+  });
+
+  useMotionValueEvent(scrollYProgress, "change", (value) => {
+    const nextStage = Math.min(stages.length - 1, Math.floor(value * stages.length));
+    setActiveStage((current) => current === nextStage ? current : nextStage);
+  });
+
   return (
-    <section className="hero" aria-labelledby="hero-title">
+    <section className="hero" aria-labelledby="hero-title" ref={heroRef}>
+      <div className="hero__stage">
       <div className="hero__visual" aria-hidden="true">
-        <Image src="/quantization-poster.png" alt="" fill priority quality={92} sizes="100vw" />
+        <CompressionVisual progress={scrollYProgress} />
         <div className="hero__wash" />
       </div>
       <div className="hero-annotation hero-annotation--reference" aria-hidden="true"><i /><span>FP32</span><small>Reference model<br />high precision</small></div>
@@ -46,6 +66,14 @@ export function CompressionHero() {
         </div>
       </div>
       <a className="scroll-cue" href="#why-fidelity"><span>Scroll to inspect</span><i><ArrowDown size={13} /></i></a>
+      <div className="hero-stage-progress" aria-live="polite">
+        <span>{String(activeStage + 1).padStart(2, "0")}</span>
+        <strong>{stages[activeStage]}</strong>
+        <div aria-hidden="true">
+          {stages.map((stage, index) => <i className={index <= activeStage ? "is-active" : ""} key={stage} />)}
+        </div>
+      </div>
+      </div>
     </section>
   );
 }
