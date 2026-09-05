@@ -10,6 +10,7 @@ import { demoReport } from "@/lib/demo-report";
 import { formatDelta, formatPValue, formatPercent } from "@/lib/format";
 import { getLatestComputedReport } from "@/lib/latest-report";
 import type { ValidationReport } from "@/lib/report-schema";
+import { getVerifiedReport } from "@/lib/verified-reports";
 
 type RunPageProps = { params: Promise<{ runId: string }> };
 
@@ -66,21 +67,30 @@ export async function generateMetadata({ params }: RunPageProps): Promise<Metada
   const { runId } = await params;
   if (runId === "demo") return { title: "Demo validation" };
   if (runId === "latest") return { title: "Latest validation" };
+  const verifiedReport = getVerifiedReport(runId);
+  if (verifiedReport) {
+    return {
+      title: `${verifiedReport.run_id} validation`,
+      description: `Bundled computed validation evidence for ${verifiedReport.model} on ${verifiedReport.dataset}.`,
+    };
+  }
   return { title: "Validation run" };
 }
 
 export default async function RunPage({ params }: RunPageProps) {
   const { runId } = await params;
-  if (runId !== "demo" && runId !== "latest") notFound();
-
   const isDemo = runId === "demo";
   let report: ValidationReport;
   if (isDemo) {
     report = demoReport;
-  } else {
+  } else if (runId === "latest") {
     const loaded = await getLatestComputedReport();
     if (loaded.state !== "available") return <UnavailableReport />;
     report = loaded.report;
+  } else {
+    const verifiedReport = getVerifiedReport(runId);
+    if (!verifiedReport) notFound();
+    report = verifiedReport;
   }
   const largestClass = [...report.per_class].sort((a, b) => Math.abs(b.delta_pp) - Math.abs(a.delta_pp))[0];
   const conclusion = conclusionFor(report);
