@@ -152,7 +152,7 @@ The command creates `artifacts/runs/<run-id>/` with:
 
 - `fp32-checkpoint.pt` - atomic model, optimizer, epoch, seed, and training
   configuration checkpoint;
-- `int8-fx-static-model.pt` - converted quantized model and engine metadata;
+- `int8-fx-static.torchscript.pt` - reloadable quantized inference module;
 - `validation-report.json` - strict computed evidence consumed by the product;
 - `metadata.json` - configuration, runtime versions, training observations,
   dataset/calibration/test fingerprints, evaluated-output hashes, and artifact

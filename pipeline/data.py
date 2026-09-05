@@ -39,6 +39,22 @@ class CifarLoaders:
     test_order_sha256: str
 
 
+class _IndexedSubset:
+    """Subset that preserves each source index in calibration batches."""
+
+    def __init__(self, dataset: Any, indices: Sequence[int]) -> None:
+        self.dataset = dataset
+        self.indices = tuple(indices)
+
+    def __len__(self) -> int:
+        return len(self.indices)
+
+    def __getitem__(self, item: int) -> tuple[Any, Any, int]:
+        source_index = self.indices[item]
+        image, label = self.dataset[source_index]
+        return image, label, source_index
+
+
 def set_loader_epoch_seed(loader: Any, seed: int) -> None:
     """Reset a training loader's generator so resumed epochs keep their order."""
 
@@ -51,14 +67,14 @@ def set_loader_epoch_seed(loader: Any, seed: int) -> None:
 def _require_torchvision() -> tuple[Any, Any, Any]:
     try:
         import torch
-        from torch.utils.data import DataLoader, Subset
+        from torch.utils.data import DataLoader
         from torchvision import datasets, transforms
     except (ImportError, OSError) as error:
         raise TorchvisionUnavailableError(
             "The CIFAR-10 pipeline needs compatible torch and torchvision packages. "
             "Install pipeline/requirements.txt with CPython 3.11--3.13."
         ) from error
-    return torch, (DataLoader, Subset), (datasets, transforms)
+    return torch, DataLoader, (datasets, transforms)
 
 
 def _stable_indices_hash(indices: Sequence[int], labels: Sequence[int]) -> str:
@@ -67,6 +83,15 @@ def _stable_indices_hash(indices: Sequence[int], labels: Sequence[int]) -> str:
     digest = hashlib.sha256()
     for index in indices:
         digest.update(f"{index}:{int(labels[index])}\n".encode("ascii"))
+    return digest.hexdigest()
+
+
+def stable_observation_hash(observations: Sequence[tuple[int, int]]) -> str:
+    """Hash exact ordered ``(source index, label)`` observations."""
+
+    digest = hashlib.sha256()
+    for index, label in observations:
+        digest.update(f"{index}:{label}\n".encode("ascii"))
     return digest.hexdigest()
 
 
@@ -112,7 +137,7 @@ def build_cifar10_loaders(
     if calibration_samples < 1:
         raise ValueError("calibration_samples must be positive")
 
-    torch, (DataLoader, Subset), (datasets, transforms) = _require_torchvision()
+    torch, DataLoader, (datasets, transforms) = _require_torchvision()
     normalized_root = Path(data_dir).expanduser().resolve()
     normalized_root.mkdir(parents=True, exist_ok=True)
     normalization = transforms.Normalize(
@@ -180,7 +205,7 @@ def build_cifar10_loaders(
         **loader_kwargs,
     )
     calibration_loader = DataLoader(
-        Subset(calibration_dataset, calibration_indices),
+        _IndexedSubset(calibration_dataset, calibration_indices),
         batch_size=evaluation_batch_size,
         shuffle=False,
         **loader_kwargs,

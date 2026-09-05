@@ -30,6 +30,7 @@ class PTQResult:
     quantized_model: Any
     backend: str
     calibration_batches: int
+    calibration_samples: int
     torch_version: str
 
 
@@ -128,6 +129,27 @@ def _default_calibration_input(batch: Any) -> Any:
     return batch
 
 
+def _calibration_batch_size(inputs: tuple[Any, ...]) -> int:
+    """Read a positive, consistent leading batch dimension from model inputs."""
+
+    observed_size: int | None = None
+    for index, value in enumerate(inputs):
+        shape = getattr(value, "shape", None)
+        if shape is None or len(shape) < 1:
+            raise ValueError(
+                f"calibration model input {index} must expose a batch dimension"
+            )
+        size = int(shape[0])
+        if size < 1:
+            raise ValueError("calibration batches cannot be empty")
+        if observed_size is not None and size != observed_size:
+            raise ValueError("calibration model inputs have different batch sizes")
+        observed_size = size
+    if observed_size is None:  # guarded by _as_positional_inputs
+        raise ValueError("calibration input_extractor produced no model inputs")
+    return observed_size
+
+
 def quantize_fx_post_training(
     model: Any,
     calibration_batches: Iterable[Any],
@@ -135,6 +157,7 @@ def quantize_fx_post_training(
     example_inputs: tuple[Any, ...],
     backend: str = "x86",
     input_extractor: Callable[[Any], Any] | None = None,
+    on_calibration_batch: Callable[[Any], None] | None = None,
     max_calibration_batches: int | None = None,
     copy_model: bool = True,
 ) -> PTQResult:
@@ -150,6 +173,8 @@ def quantize_fx_post_training(
         example_inputs: Positional sample inputs required by ``prepare_fx``.
         backend: A quantized engine supported by the installed PyTorch build.
         input_extractor: Maps a loader batch to a tensor or tuple of model args.
+        on_calibration_batch: Observes each original batch only after the
+            instrumented model has processed it successfully.
         max_calibration_batches: Optional positive cap for bounded calibration.
         copy_model: Deep-copy the source model before observer insertion.
     """
@@ -201,6 +226,7 @@ def quantize_fx_post_training(
     prepared = prepare_fx(working_model, qconfig_mapping, cpu_example_inputs)
     extractor = input_extractor or _default_calibration_input
     observed_batches = 0
+    observed_samples = 0
     with torch.inference_mode():
         for batch in calibration_batches:
             inputs = _as_positional_inputs(
@@ -209,8 +235,12 @@ def quantize_fx_post_training(
             cpu_inputs = tuple(
                 value.cpu() if hasattr(value, "cpu") else value for value in inputs
             )
+            batch_size = _calibration_batch_size(cpu_inputs)
             prepared(*cpu_inputs)
+            if on_calibration_batch is not None:
+                on_calibration_batch(batch)
             observed_batches += 1
+            observed_samples += batch_size
             if (
                 max_calibration_batches is not None
                 and observed_batches >= max_calibration_batches
@@ -227,6 +257,7 @@ def quantize_fx_post_training(
         quantized_model=quantized_model,
         backend=backend,
         calibration_batches=observed_batches,
+        calibration_samples=observed_samples,
         torch_version=str(torch.__version__),
     )
 

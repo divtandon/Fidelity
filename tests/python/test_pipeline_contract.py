@@ -13,11 +13,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from pipeline.cli import build_parser
-from pipeline.data import CifarLoaders, _stable_indices_hash
+from pipeline.data import CifarLoaders, _stable_indices_hash, stable_observation_hash
 from pipeline.runner import (
     PipelineConfig,
     _classification_outputs_sha256,
     _cosine_learning_rate,
+    _planned_artifact_paths,
     _validate_resume_config,
     atomic_json_write,
     run_pipeline,
@@ -69,6 +70,17 @@ class PipelineContractTests(unittest.TestCase):
     def test_config_rejects_path_like_run_id(self) -> None:
         with self.assertRaisesRegex(ValueError, "run_id"):
             PipelineConfig(run_id="../escape").validate()
+
+    def test_artifact_plan_rejects_latest_report_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary) / "run"
+            with self.assertRaisesRegex(ValueError, "metadata and latest_report"):
+                _planned_artifact_paths(run_dir, run_dir / "metadata.json")
+            source = Path(temporary) / "source.pt"
+            with self.assertRaisesRegex(
+                ValueError, "resume_checkpoint and latest_report"
+            ):
+                _planned_artifact_paths(run_dir, source, source)
 
     def test_sample_fingerprint_changes_when_order_changes(self) -> None:
         labels = [3, 1, 4]
@@ -181,7 +193,7 @@ class PipelineContractTests(unittest.TestCase):
         train_loader = _Loader()
         loaders = CifarLoaders(
             train=train_loader,
-            calibration=[(_Input(), object())],
+            calibration=[(_Input(), [0], [7])],
             test=[],
             calibration_sample_count=1,
             calibration_indices_sha256="c" * 64,
@@ -201,6 +213,17 @@ class PipelineContractTests(unittest.TestCase):
         def fake_write_report(_report: object, path: Path) -> Path:
             path.write_text('{"computed":true}\n', encoding="utf-8")
             return path
+
+        def fake_quantize(*_args: object, **kwargs: object) -> SimpleNamespace:
+            callback = kwargs["on_calibration_batch"]
+            callback(loaders.calibration[0])
+            return SimpleNamespace(
+                quantized_model="int8",
+                backend="x86",
+                torch_version="test-torch",
+                calibration_batches=1,
+                calibration_samples=1,
+            )
 
         torch = SimpleNamespace(
             __version__="test-torch",
@@ -222,15 +245,13 @@ class PipelineContractTests(unittest.TestCase):
                 build_cifar10_loaders=lambda **_kwargs: loaders,
                 build_resnet18_cifar10=lambda: _Model(),
                 evaluate_classifier=lambda _model, _loader, *, device: (
-                    candidate if device == "cpu" and _model == "int8" else reference
+                    candidate
+                    if device == "cpu" and _model == "int8-export"
+                    else reference
                 ),
-                quantize_fx_post_training=lambda *_args, **_kwargs: SimpleNamespace(
-                    quantized_model="int8",
-                    backend="x86",
-                    torch_version="test-torch",
-                    calibration_batches=1,
-                ),
-                atomic_torch_save=fake_save,
+                quantize_fx_post_training=fake_quantize,
+                atomic_torchscript_save=fake_save,
+                load_torchscript_model=lambda _path: "int8-export",
                 save_checkpoint=lambda **kwargs: fake_save({}, kwargs["output_path"]),
                 load_checkpoint=lambda **_kwargs: {
                     "_source_sha256": "a" * 64,
@@ -286,6 +307,12 @@ class PipelineContractTests(unittest.TestCase):
             metadata["training"]["resume_source"]["filename"], "existing.pt"
         )
         self.assertEqual(metadata["training"]["checkpoint_config"]["target_epochs"], 0)
+        self.assertEqual(metadata["dataset"]["calibration_samples_observed"], 1)
+        self.assertEqual(
+            metadata["dataset"]["calibration_observed_order_sha256"],
+            stable_observation_hash([(7, 0)]),
+        )
+        self.assertEqual(metadata["quantization"]["calibration_samples_observed"], 1)
 
 
 if __name__ == "__main__":

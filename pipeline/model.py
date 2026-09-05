@@ -73,6 +73,48 @@ def atomic_torch_save(payload: Any, output_path: Path) -> Path:
     return destination
 
 
+def atomic_torchscript_save(model: Any, output_path: Path) -> Path:
+    """Export a standalone, reloadable TorchScript inference module."""
+
+    torch, _ = _require_torchvision_models()
+    destination = Path(output_path).expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    scripted = torch.jit.script(model.eval())
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w+b",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary_name = temporary.name
+            torch.jit.save(scripted, temporary)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        os.replace(temporary_name, destination)
+    finally:
+        if temporary_name is not None and os.path.exists(temporary_name):
+            os.unlink(temporary_name)
+    return destination
+
+
+def load_torchscript_model(path: Path, *, device: str = "cpu") -> Any:
+    """Load a trusted Fidelity inference export.
+
+    TorchScript loading can execute serialized code. Callers must never pass
+    an artifact from an untrusted source.
+    """
+
+    torch, _ = _require_torchvision_models()
+    source = Path(path).expanduser().resolve()
+    if not source.is_file():
+        raise FileNotFoundError(f"TorchScript model does not exist: {source}")
+    model = torch.jit.load(str(source), map_location=device)
+    return model.eval()
+
+
 def save_checkpoint(
     *,
     model: Any,

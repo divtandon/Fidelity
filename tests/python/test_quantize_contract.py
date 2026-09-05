@@ -1,7 +1,10 @@
 import builtins
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
+from pipeline.model import atomic_torchscript_save, load_torchscript_model
 from quantize.run_ptq import (
     ClassificationOutputs,
     PyTorchUnavailableError,
@@ -86,13 +89,22 @@ class QuantizeContractTests(unittest.TestCase):
                 "installed PyTorch build has no supported quantized CPU engine"
             )
 
+        observed_calibration: list[object] = []
+        calibration = [
+            (inputs[:3], targets[:3]),
+            (inputs[3:], targets[3:]),
+        ]
         result = quantize_fx_post_training(
             model,
-            [(inputs, targets)],
-            example_inputs=(inputs,),
+            calibration,
+            example_inputs=(inputs[:3],),
             backend=backend,
+            max_calibration_batches=1,
+            on_calibration_batch=observed_calibration.append,
         )
         self.assertEqual(result.calibration_batches, 1)
+        self.assertEqual(result.calibration_samples, 3)
+        self.assertEqual(observed_calibration, calibration[:1])
         self.assertIsNot(result.quantized_model, model)
         self.assertTrue(
             any(
@@ -107,6 +119,16 @@ class QuantizeContractTests(unittest.TestCase):
         )
         self.assertEqual(observed.sample_count, 6)
         self.assertEqual(len(observed.probabilities[0]), 2)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            export = atomic_torchscript_save(
+                result.quantized_model,
+                Path(temporary) / "int8.torchscript.pt",
+            )
+            reloaded = load_torchscript_model(export)
+            expected_logits = result.quantized_model(inputs)
+            reloaded_logits = reloaded(inputs)
+        torch.testing.assert_close(reloaded_logits, expected_logits)
 
 
 if __name__ == "__main__":

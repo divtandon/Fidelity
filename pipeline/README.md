@@ -36,6 +36,8 @@ The command writes a run directory under `artifacts/runs/<run-id>/` containing:
 
 - `fp32-checkpoint.pt` — atomic checkpoint with model, optimizer, epoch and
   train configuration;
+- `int8-fx-static.torchscript.pt` — standalone, reloadable TorchScript
+  inference export;
 - `validation-report.json` — the strict, computed Fidelity report;
 - `metadata.json` — reproducibility record with seed, device, ordered test
   sample fingerprint, calibration selection fingerprint, checkpoint SHA-256,
@@ -47,6 +49,11 @@ the optional API's default input; use `--latest-report-path` to change it.
 
 Nothing under `artifacts/`, `data/`, or `models/` is tracked by git. A command
 only prints values it observed during its own training or evaluation.
+
+Treat model files as trusted artifacts. PyTorch's TorchScript loader may execute
+serialized code, so do not load a `.pt` file from an untrusted source. The FX
+and TorchScript calls are isolated behind small adapters so a future migration
+to PyTorch's newer quantization/export path does not change report semantics.
 
 Resume an interrupted checkpoint with the same total epoch target. Fidelity
 uses an epoch-indexed cosine schedule and rejects changed optimizer or schedule

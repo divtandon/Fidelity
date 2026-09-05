@@ -31,12 +31,14 @@ from .data import (
     CifarLoaders,
     build_cifar10_loaders,
     set_loader_epoch_seed,
+    stable_observation_hash,
 )
 from .model import (
     ARCHITECTURE_ID,
-    atomic_torch_save,
+    atomic_torchscript_save,
     build_resnet18_cifar10,
     load_checkpoint,
+    load_torchscript_model,
     save_checkpoint,
 )
 
@@ -237,6 +239,59 @@ def _classification_outputs_sha256(outputs: ClassificationOutputs) -> str:
     return digest.hexdigest()
 
 
+def _calibration_observations(batch: Any) -> tuple[tuple[int, int], ...]:
+    """Extract ordered source-index/label pairs from a pipeline calibration batch."""
+
+    if not isinstance(batch, (tuple, list)) or len(batch) < 3:
+        raise ValueError("pipeline calibration batches must include source indices")
+
+    def integers(value: Any, name: str) -> list[int]:
+        if hasattr(value, "detach"):
+            value = value.detach().cpu().reshape(-1).tolist()
+        elif isinstance(value, (tuple, list)):
+            value = list(value)
+        else:
+            raise TypeError(f"calibration {name} must be a tensor or sequence")
+        if any(
+            isinstance(item, bool) or not isinstance(item, int) or item < 0
+            for item in value
+        ):
+            raise ValueError(f"calibration {name} must contain non-negative integers")
+        return value
+
+    labels = integers(batch[1], "labels")
+    indices = integers(batch[2], "source indices")
+    if len(labels) != len(indices) or not labels:
+        raise ValueError("calibration labels and source indices must have equal size")
+    return tuple(zip(indices, labels, strict=True))
+
+
+def _planned_artifact_paths(
+    run_dir: Path,
+    latest_report_path: Path,
+    resume_checkpoint: Path | None = None,
+) -> dict[str, Path]:
+    """Resolve run outputs and reject aliases before any artifact is written."""
+
+    paths = {
+        "checkpoint": (run_dir / "fp32-checkpoint.pt").resolve(),
+        "quantized_model": (run_dir / "int8-fx-static.torchscript.pt").resolve(),
+        "validation_report": (run_dir / "validation-report.json").resolve(),
+        "metadata": (run_dir / "metadata.json").resolve(),
+        "latest_report": Path(latest_report_path).expanduser().resolve(),
+    }
+    owners: dict[Path, str] = {}
+    if resume_checkpoint is not None:
+        owners[Path(resume_checkpoint).expanduser().resolve()] = "resume_checkpoint"
+    for name, path in paths.items():
+        if path in owners:
+            raise ValueError(
+                f"artifact paths for {owners[path]} and {name} resolve to the same file"
+            )
+        owners[path] = name
+    return paths
+
+
 def atomic_json_write(payload: Mapping[str, Any], output_path: Path) -> Path:
     """Write small provenance documents atomically and with stable JSON bytes."""
 
@@ -384,6 +439,8 @@ def _metadata(
     torchvision_version: str,
     quantization_backend: str,
     calibration_batches: int,
+    calibration_samples_observed: int,
+    calibration_observed_order_sha256: str,
     training_history: list[dict[str, Any]],
     checkpoint_training_config: Mapping[str, Any],
     checkpoint_completed_epoch: int,
@@ -410,8 +467,10 @@ def _metadata(
             "held_out_test_order_sha256": loaders.test_order_sha256,
             "held_out_test_sample_count": evaluated_sample_count,
             "calibration_split": "train",
-            "calibration_sample_count": loaders.calibration_sample_count,
-            "calibration_indices_sha256": loaders.calibration_indices_sha256,
+            "calibration_samples_selected": loaders.calibration_sample_count,
+            "calibration_selection_sha256": loaders.calibration_indices_sha256,
+            "calibration_samples_observed": calibration_samples_observed,
+            "calibration_observed_order_sha256": calibration_observed_order_sha256,
         },
         "reproducibility": {
             "seed": config.seed,
@@ -428,7 +487,10 @@ def _metadata(
             "implementation": "torch.ao.quantization.quantize_fx",
             "mode": "fx_static_post_training_int8",
             "backend": quantization_backend,
+            "artifact_format": "torchscript",
+            "artifact_trust": "load_trusted_artifacts_only",
             "calibration_batches_observed": calibration_batches,
+            "calibration_samples_observed": calibration_samples_observed,
         },
         "evaluation": {
             "reference_outputs_sha256": _classification_outputs_sha256(
@@ -481,6 +543,11 @@ def run_pipeline(
     # constructed programmatically rather than by argparse.
     if run_dir.parent != Path(config.artifacts_dir).expanduser().resolve():
         raise ValueError("run_id resolves outside artifacts_dir")
+    artifact_paths = _planned_artifact_paths(
+        run_dir,
+        config.latest_report_path,
+        config.resume_checkpoint,
+    )
     run_dir.mkdir(parents=True, exist_ok=False)
 
     def announce(message: str) -> None:
@@ -543,7 +610,7 @@ def run_pipeline(
                 )
             announce(f"resumed checkpoint at completed epoch {start_epoch}")
 
-        checkpoint_path = run_dir / "fp32-checkpoint.pt"
+        checkpoint_path = artifact_paths["checkpoint"]
         training_history: list[dict[str, Any]] = []
         for epoch in range(start_epoch, config.epochs):
             learning_rate = _cosine_learning_rate(config, epoch)
@@ -608,31 +675,36 @@ def run_pipeline(
         )
 
         try:
-            example_inputs, _ = next(iter(loaders.calibration))
+            first_calibration_batch = next(iter(loaders.calibration))
         except StopIteration as error:  # defensive; loader builder enforces samples > 0
             raise RuntimeError(
                 "calibration loader unexpectedly yielded no batches"
             ) from error
+        if not isinstance(first_calibration_batch, (tuple, list)):
+            raise TypeError("calibration loader must yield an input tuple")
+        example_inputs = first_calibration_batch[0]
+        observed_calibration: list[tuple[int, int]] = []
         ptq = quantize_fx_post_training(
             reference_model,
             loaders.calibration,
             example_inputs=(example_inputs.cpu(),),
             backend=backend,
             max_calibration_batches=config.max_calibration_batches,
+            on_calibration_batch=lambda batch: observed_calibration.extend(
+                _calibration_observations(batch)
+            ),
         )
-        quantized_model_path = atomic_torch_save(
-            {
-                "format_version": 1,
-                "architecture": ARCHITECTURE_ID,
-                "quantization_backend": ptq.backend,
-                "torch_version": ptq.torch_version,
-                "calibration_batches": ptq.calibration_batches,
-                "model": ptq.quantized_model,
-            },
-            run_dir / "int8-fx-static-model.pt",
+        if ptq.calibration_samples != len(observed_calibration):
+            raise RuntimeError(
+                "calibration observer count differs from recorded source observations"
+            )
+        quantized_model_path = atomic_torchscript_save(
+            ptq.quantized_model,
+            artifact_paths["quantized_model"],
         )
+        exported_candidate_model = load_torchscript_model(quantized_model_path)
         candidate_outputs = evaluate_classifier(
-            ptq.quantized_model, loaders.test, device="cpu"
+            exported_candidate_model, loaders.test, device="cpu"
         )
         if reference_outputs.targets != candidate_outputs.targets:
             raise RuntimeError(
@@ -660,7 +732,7 @@ def run_pipeline(
             candidate_probabilities=candidate_outputs.probabilities,
             class_names=CIFAR10_CLASSES,
         )
-        report_path = write_report(report, run_dir / "validation-report.json")
+        report_path = write_report(report, artifact_paths["validation_report"])
         try:
             import torchvision
         except (ImportError, OSError) as error:  # impossible after loader creation
@@ -681,6 +753,10 @@ def run_pipeline(
                 torchvision_version=str(torchvision.__version__),
                 quantization_backend=ptq.backend,
                 calibration_batches=ptq.calibration_batches,
+                calibration_samples_observed=ptq.calibration_samples,
+                calibration_observed_order_sha256=stable_observation_hash(
+                    observed_calibration
+                ),
                 training_history=training_history,
                 checkpoint_training_config=checkpoint_config,
                 checkpoint_completed_epoch=checkpoint_completed_epoch,
@@ -689,11 +765,11 @@ def run_pipeline(
                 reference_outputs=reference_outputs,
                 candidate_outputs=candidate_outputs,
             ),
-            run_dir / "metadata.json",
+            artifact_paths["metadata"],
         )
         # Publish only after the complete run record exists. The API reads this
         # stable path and independently validates it before serving evidence.
-        latest_report_path = write_report(report, config.latest_report_path)
+        latest_report_path = write_report(report, artifact_paths["latest_report"])
     except BaseException:
         # Keep partial artifacts for inspection but never label a failed run as
         # completed by writing a report/metadata pair after an exception.
