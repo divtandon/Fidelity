@@ -12,7 +12,7 @@ an optional read-only FastAPI delivery boundary. Metrics and verdicts originate
 in the Python report pipeline; the browser presents that evidence but never
 manufactures a computed result.
 
-![Fidelity's FP32-to-INT8 visual](web/public/quantization-poster.png)
+![Fidelity's cinematic FP32-to-INT8 home experience](docs/home.png)
 
 ## Project status
 
@@ -45,6 +45,8 @@ artifact on the same ordered 10,000-example held-out test split.
 | Paired Wilcoxon signed-rank | p = 1.0; 39 non-zero pairs; exact permutation |
 | Mean confidence drift | 0.0004199851152058104 nats |
 | Backend policy | `ready`; no crossed guardrails |
+
+![The verified CIFAR-10 evidence report](docs/verified-report.png)
 
 Open the [interactive verified report](http://localhost:3000/runs/cifar10-resnet18-int8-seed2026),
 or inspect the exact [report](web/lib/verified-runs/cifar10-resnet18-int8-seed2026/report.json),
@@ -262,6 +264,8 @@ npm run test:e2e
 CI keeps fast Python validation checks separate from a focused CPU-only ML job.
 The latter installs the official CPU PyTorch wheels and executes real FX PTQ,
 TorchScript export/reload, checkpoint, and deterministic runtime contracts.
+The measured UI performance and frame-pacing methodology are recorded in
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Repository map
 
