@@ -97,7 +97,13 @@
         "p_value": { "type": "number", "minimum": 0, "maximum": 1 },
         "n_pairs": { "type": "integer", "minimum": 1 },
         "n_nonzero": { "type": "integer", "minimum": 0 },
-        "method": { "enum": ["exact_permutation", "not_applicable"] },
+        "method": {
+          "enum": [
+            "exact_permutation",
+            "normal_approximation",
+            "not_applicable"
+          ]
+        },
         "alternative": { "const": "two-sided" },
         "valid": { "type": "boolean" },
         "median_difference": { "type": "number" },

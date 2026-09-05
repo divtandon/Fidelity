@@ -307,6 +307,17 @@ class ReportTests(unittest.TestCase):
 
 
 class SerializerTests(unittest.TestCase):
+    def test_json_schema_lists_every_supported_significance_method(self) -> None:
+        schema_path = (
+            Path(__file__).resolve().parents[2] / "validation" / "report.schema.json"
+        )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            set(schema["$defs"]["significance"]["properties"]["method"]["enum"]),
+            {"exact_permutation", "normal_approximation", "not_applicable"},
+        )
+
     def test_serialization_is_deterministic_and_round_trips(self) -> None:
         report = make_report(degraded=True)
         first = dumps_report(report)
