@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fidelity.local/schemas/validation-report-1.0.0.json",
+  "title": "Fidelity validation report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provenance",
+    "run_id",
+    "created_at",
+    "model",
+    "dataset",
+    "sample_count",
+    "reference",
+    "candidate",
+    "accuracy_delta_pp",
+    "significance",
+    "confidence_drift",
+    "per_class",
+    "verdict"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "model": { "type": "string", "minLength": 1 },
+    "dataset": { "type": "string", "minLength": 1 },
+    "sample_count": { "type": "integer", "minimum": 1, "maximum": 10000000 },
+    "reference": { "$ref": "#/$defs/modelMetrics" },
+    "candidate": { "$ref": "#/$defs/modelMetrics" },
+    "accuracy_delta_pp": { "type": "number" },
+    "significance": { "$ref": "#/$defs/significance" },
+    "confidence_drift": { "$ref": "#/$defs/confidenceDrift" },
+    "per_class": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/classAccuracy" }
+    },
+    "verdict": { "$ref": "#/$defs/verdict" }
+  },
+  "$defs": {
+    "provenance": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "computed"],
+          "properties": {
+            "kind": { "const": "computed" },
+            "computed": { "const": true }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "computed"],
+          "properties": {
+            "kind": { "const": "demo" },
+            "computed": { "const": false }
+          }
+        }
+      ]
+    },
+    "modelMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["precision", "top1_accuracy", "correct_count"],
+      "properties": {
+        "precision": { "type": "string", "minLength": 1 },
+        "top1_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "correct_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "significance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test",
+        "statistic",
+        "p_value",
+        "n_pairs",
+        "n_nonzero",
+        "method",
+        "alternative",
+        "valid",
+        "median_difference",
+        "note",
+        "alpha",
+        "is_significant",
+        "interpretation"
+      ],
+      "properties": {
+        "test": { "const": "wilcoxon_signed_rank" },
+        "statistic": { "type": "number", "minimum": 0 },
+        "p_value": { "type": "number", "minimum": 0, "maximum": 1 },
+        "n_pairs": { "type": "integer", "minimum": 1 },
+        "n_nonzero": { "type": "integer", "minimum": 0 },
+        "method": { "enum": ["exact_permutation", "not_applicable"] },
+        "alternative": { "const": "two-sided" },
+        "valid": { "type": "boolean" },
+        "median_difference": { "type": "number" },
+        "note": { "type": ["string", "null"] },
+        "alpha": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "is_significant": { "type": "boolean" },
+        "interpretation": {
+          "enum": [
+            "no_observed_pairwise_differences",
+            "statistically_detectable_candidate_decrease",
+            "statistically_detectable_candidate_increase",
+            "statistically_detectable_pairwise_difference",
+            "no_statistically_detectable_difference"
+          ]
+        }
+      }
+    },
+    "confidenceDrift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "value", "direction", "unit", "epsilon", "sample_count"],
+      "properties": {
+        "metric": { "const": "kl_divergence" },
+        "value": { "type": "number", "minimum": 0 },
+        "direction": { "const": "reference_to_candidate" },
+        "unit": { "const": "nats" },
+        "epsilon": { "type": "number", "exclusiveMinimum": 0 },
+        "sample_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "classAccuracy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class_id",
+        "class_name",
+        "sample_count",
+        "reference_correct",
+        "candidate_correct",
+        "reference_accuracy",
+        "candidate_accuracy",
+        "delta_pp"
+      ],
+      "properties": {
+        "class_id": { "type": "integer", "minimum": 0 },
+        "class_name": { "type": "string", "minLength": 1 },
+        "sample_count": { "type": "integer", "minimum": 1 },
+        "reference_correct": { "type": "integer", "minimum": 0 },
+        "candidate_correct": { "type": "integer", "minimum": 0 },
+        "reference_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "candidate_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "delta_pp": { "type": "number" }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasons", "policy"],
+      "properties": {
+        "status": { "enum": ["ready", "review", "blocked"] },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "policy": { "$ref": "#/$defs/policy" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "alpha",
+        "review_accuracy_drop_pp",
+        "block_accuracy_drop_pp",
+        "review_confidence_kl",
+        "block_confidence_kl",
+        "review_class_drop_pp",
+        "block_class_drop_pp",
+        "minimum_class_samples"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "alpha": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "review_accuracy_drop_pp": { "type": "number", "minimum": 0 },
+        "block_accuracy_drop_pp": { "type": "number", "minimum": 0 },
+        "review_confidence_kl": { "type": "number", "minimum": 0 },
+        "block_confidence_kl": { "type": "number", "minimum": 0 },
+        "review_class_drop_pp": { "type": "number", "minimum": 0 },
+        "block_class_drop_pp": { "type": "number", "minimum": 0 },
+        "minimum_class_samples": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
