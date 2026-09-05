@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Activity, ArrowDown, ArrowRight, Check, CircleAlert, Database, FileJson2, Fingerprint, ShieldCheck } from "lucide-react";
 
+import { AccuracyComparison } from "@/components/dashboard/accuracy-comparison";
 import { EvidenceDrawer } from "@/components/dashboard/evidence-drawer";
 import { ExportReportButton } from "@/components/dashboard/export-report-button";
 import { PerClassChart } from "@/components/dashboard/per-class-chart";
+import { PredictionDriftChart } from "@/components/dashboard/prediction-drift-chart";
 import { demoReport } from "@/lib/demo-report";
 import { formatDelta, formatPValue, formatPercent } from "@/lib/format";
 import { getLatestComputedReport } from "@/lib/latest-report";
@@ -97,7 +99,6 @@ export default async function RunPage({ params }: RunPageProps) {
   const status = titleCase(report.verdict.status);
   const sourceName = isDemo ? "illustrative fixture" : "computed report";
   const provenance = isDemo ? "Illustrative fixture" : "Pipeline-produced evidence";
-  const driftInReviewRange = report.confidence_drift.value < report.verdict.policy.review_confidence_kl;
 
   return (
     <main id="main-content" className="report-page">
@@ -142,21 +143,7 @@ export default async function RunPage({ params }: RunPageProps) {
             <div><p className="report-kicker">Overall comparison</p><h2 id="comparison-title">How large was the accuracy change?</h2><p>Candidate minus reference, measured on the same evaluated examples.</p></div>
             <span className="comparison-panel__delta">{formatDelta(report.accuracy_delta_pp)}</span>
           </div>
-          <div className="accuracy-comparison">
-            <article className="accuracy-card accuracy-card--fp32">
-              <div><span>Reference</span><strong>{report.reference.precision}</strong></div>
-              <p>{formatPercent(report.reference.top1_accuracy)}</p>
-              <div className="accuracy-card__bar"><i style={{ width: `${report.reference.top1_accuracy * 100}%` }} /></div>
-              <small>{report.reference.correct_count.toLocaleString()} / {report.sample_count.toLocaleString()} correct</small>
-            </article>
-            <div className="comparison-aperture" aria-label={`Observed change ${formatDelta(report.accuracy_delta_pp)}`}><i /><span>{formatDelta(report.accuracy_delta_pp)}</span><i /></div>
-            <article className="accuracy-card accuracy-card--int8">
-              <div><span>Candidate</span><strong>{report.candidate.precision}</strong></div>
-              <p>{formatPercent(report.candidate.top1_accuracy)}</p>
-              <div className="accuracy-card__bar"><i style={{ width: `${report.candidate.top1_accuracy * 100}%` }} /></div>
-              <small>{report.candidate.correct_count.toLocaleString()} / {report.sample_count.toLocaleString()} correct</small>
-            </article>
-          </div>
+          <AccuracyComparison report={report} />
           <p className="comparison-explainer"><Fingerprint size={15} /> Percentage points compare two percentages directly. The candidate changed from {formatPercent(report.reference.top1_accuracy)} to {formatPercent(report.candidate.top1_accuracy)} ({formatDelta(report.accuracy_delta_pp)}).</p>
         </section>
 
@@ -165,9 +152,7 @@ export default async function RunPage({ params }: RunPageProps) {
         <section className="secondary-evidence-grid">
           <article className="report-panel drift-panel">
             <div className="report-panel__heading"><div><p className="report-kicker">Prediction drift</p><h2>Did the output distributions move?</h2><p>Mean KL(reference ∥ candidate), across all evaluated examples.</p></div></div>
-            <div className="drift-orbit" role="img" aria-label={`Mean confidence divergence ${report.confidence_drift.value.toFixed(3)} nats`}><i /><i /><i /><span>{report.confidence_drift.value.toFixed(3)}</span><small>nats</small></div>
-            <div className="drift-scale"><span>Closer</span><i><b style={{ left: `${Math.min(100, Math.max(0, report.confidence_drift.value / Math.max(report.verdict.policy.block_confidence_kl, 0.001) * 100))}%` }} /></i><span>Farther</span></div>
-            <p className="drift-note">Lower means closer, but Fidelity does not assume a universal safe threshold. This {sourceName} is {driftInReviewRange ? "within" : "beyond"} its review threshold of {report.verdict.policy.review_confidence_kl.toFixed(3)} nats.</p>
+            <PredictionDriftChart report={report} />
           </article>
 
           <article className="report-panel signal-panel">

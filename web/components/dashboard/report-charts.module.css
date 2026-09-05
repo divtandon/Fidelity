@@ -1,0 +1,620 @@
+.interactionHint {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #62687c;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.interactionHint svg {
+  flex: 0 0 auto;
+  color: var(--fp32-deep);
+}
+
+.metricReadout {
+  display: grid;
+  min-height: 4.7rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1.4rem;
+  border: 1px solid #d9dbe5;
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(120deg, rgba(49, 92, 245, 0.07), transparent 42%),
+    #fbfaf8;
+  padding: 0.9rem 1.1rem;
+}
+
+.metricReadout > span {
+  min-width: 6.8rem;
+  color: var(--fp32-deep);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metricReadout strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.96rem;
+  line-height: 1.35;
+}
+
+.metricReadout small {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+/* Overall accuracy */
+.accuracyExplorer {
+  margin-top: 2rem;
+}
+
+.accuracyGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.36fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+  margin-top: 0.85rem;
+}
+
+.accuracyCard,
+.deltaCard {
+  appearance: none;
+  position: relative;
+  display: grid;
+  min-width: 0;
+  border: 1px solid #dadce6;
+  border-radius: 1.35rem;
+  background: #f7f6f3;
+  padding: 1.35rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.accuracyCard:hover,
+.accuracyCard:focus-visible,
+.accuracyCard[data-active="true"],
+.deltaCard:hover,
+.deltaCard:focus-visible,
+.deltaCard[data-active="true"] {
+  z-index: 1;
+  border-color: rgba(49, 92, 245, 0.48);
+  outline: none;
+  box-shadow: 0 16px 34px rgba(31, 39, 88, 0.11), inset 0 0 0 1px rgba(49, 92, 245, 0.1);
+  transform: translateY(-2px);
+}
+
+.accuracyCard[data-tone="int8"]:hover,
+.accuracyCard[data-tone="int8"]:focus-visible,
+.accuracyCard[data-tone="int8"][data-active="true"] {
+  border-color: rgba(244, 86, 46, 0.48);
+  box-shadow: 0 16px 34px rgba(122, 54, 35, 0.1), inset 0 0 0 1px rgba(244, 86, 46, 0.1);
+}
+
+.accuracyCard header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.accuracyCard header span,
+.deltaCard > span:first-child {
+  color: var(--ink-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.accuracyCard header strong {
+  color: var(--fp32-deep);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+}
+
+.accuracyCard[data-tone="int8"] header strong,
+.accuracyCard[data-tone="int8"] .accuracyValue {
+  color: var(--int8-deep);
+}
+
+.accuracyValue {
+  margin: 2.25rem 0 1.25rem;
+  color: var(--fp32-deep);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(3.4rem, 5vw, 5.7rem);
+  letter-spacing: -0.055em;
+  line-height: 0.82;
+}
+
+.accuracyTrack {
+  height: 0.55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dfe0e7;
+}
+
+.accuracyTrack > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7291ff, var(--fp32));
+}
+
+.accuracyCard[data-tone="int8"] .accuracyTrack > i {
+  background: linear-gradient(90deg, #ff9b7b, var(--int8));
+}
+
+.accuracyCard > small {
+  margin-top: 0.8rem;
+  color: var(--ink-muted);
+  font-size: 0.74rem;
+}
+
+.deltaCard {
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.deltaCard::before,
+.deltaCard::after {
+  width: 100%;
+  height: 1px;
+  margin-block: 0.75rem;
+  background: linear-gradient(90deg, var(--fp32), var(--int8));
+  content: "";
+}
+
+.deltaCard strong {
+  color: var(--int8-deep);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+/* Per-class evidence */
+.chartSummary {
+  margin: 2rem 0 1rem;
+  border-left: 3px solid var(--fp32);
+  border-radius: 0 0.85rem 0.85rem 0;
+  background: var(--fp32-soft);
+  padding: 0.85rem 1rem;
+  color: #344173;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.chartRegion {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid #e0e1e8;
+  border-radius: 1.2rem;
+  background: linear-gradient(180deg, #fff, #fcfbf8);
+  padding: 0.6rem 0.65rem 0.25rem;
+}
+
+.chartCanvas {
+  min-width: 900px;
+}
+
+.chartTooltip {
+  min-width: 15rem;
+  border: 1px solid rgba(23, 28, 67, 0.16);
+  border-radius: 1rem;
+  background: rgba(255, 254, 251, 0.97);
+  box-shadow: 0 16px 45px rgba(23, 28, 67, 0.17);
+  padding: 0.9rem 1rem;
+  color: var(--ink);
+  backdrop-filter: blur(12px);
+}
+
+.chartTooltip > p {
+  margin: 0 0 0.65rem;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.chartTooltip dl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.chartTooltip dt {
+  color: var(--ink-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chartTooltip dd {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.chartTooltip dl > div:nth-child(1) dd { color: var(--fp32-deep); }
+.chartTooltip dl > div:nth-child(2) dd,
+.chartTooltip dl > div:nth-child(3) dd { color: var(--int8-deep); }
+
+.chartTooltip > small {
+  display: block;
+  margin-top: 0.7rem;
+  color: var(--ink-muted);
+  font-size: 0.66rem;
+}
+
+.classExplorer {
+  display: grid;
+  grid-template-columns: minmax(19rem, 0.65fr) minmax(0, 1.35fr);
+  gap: 1rem;
+  align-items: stretch;
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.classReadout {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 1fr repeat(3, auto);
+  gap: 1.1rem;
+  align-items: center;
+  border-radius: 1rem;
+  background: #f5f4f1;
+  padding: 0.85rem 1rem;
+}
+
+.classReadout > div:first-child span,
+.classReadout dt {
+  display: block;
+  color: var(--ink-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.classReadout > div:first-child strong {
+  display: block;
+  margin-top: 0.15rem;
+  overflow: hidden;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+}
+
+.classReadout dl {
+  display: contents;
+  margin: 0;
+}
+
+.classReadout dd {
+  margin: 0.25rem 0 0;
+  font-size: 0.77rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.classReadout dl > div:nth-child(1) dd { color: var(--fp32-deep); }
+.classReadout dl > div:nth-child(2) dd,
+.classReadout dl > div:nth-child(3) dd { color: var(--int8-deep); }
+
+.classControls {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.classControls button {
+  appearance: none;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: transparent;
+  padding: 0.55rem 0.6rem;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.classControls button:hover,
+.classControls button:focus-visible,
+.classControls button[data-active="true"] {
+  border-color: rgba(49, 92, 245, 0.45);
+  outline: none;
+  background: var(--fp32-soft);
+  box-shadow: 0 5px 15px rgba(49, 92, 245, 0.08);
+}
+
+.classControls button span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classControls button small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--int8-deep);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.56rem;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.dataTable caption {
+  padding: 0.9rem 1rem;
+  color: var(--ink-muted);
+  text-align: left;
+}
+
+.dataTable th,
+.dataTable td {
+  border-top: 1px solid var(--line);
+  padding: 0.9rem 1rem;
+  text-align: left;
+}
+
+.dataTable thead th {
+  color: var(--ink-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dataTable tbody th { font-weight: 800; }
+
+.dataTable button {
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  padding: 0.2rem;
+  color: var(--fp32-deep);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* KL drift: a distance gauge, deliberately not a pie chart. */
+.driftExplorer {
+  margin: 1.5rem 0 0;
+}
+
+.driftBody {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.58fr) minmax(19rem, 1.42fr);
+  gap: clamp(1.25rem, 3vw, 2.4rem);
+  align-items: center;
+}
+
+.driftReading {
+  appearance: none;
+  position: relative;
+  display: grid;
+  width: min(16rem, 100%);
+  aspect-ratio: 1;
+  place-content: center;
+  justify-self: center;
+  overflow: hidden;
+  border: 1px solid rgba(49, 92, 245, 0.3);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(49, 92, 245, 0.09), transparent 62%);
+  color: var(--ink);
+  cursor: pointer;
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.driftReading::before,
+.driftReading::after {
+  position: absolute;
+  border: 1px solid rgba(49, 92, 245, 0.25);
+  border-radius: 50%;
+  content: "";
+}
+
+.driftReading::before { inset: 12%; }
+.driftReading::after { inset: 26%; border-color: rgba(244, 86, 46, 0.34); }
+
+.driftReading:hover,
+.driftReading:focus-visible,
+.driftReading[data-active="true"] {
+  outline: none;
+  box-shadow: 0 18px 45px rgba(38, 52, 126, 0.14), inset 0 0 0 8px rgba(49, 92, 245, 0.04);
+  transform: translateY(-2px);
+}
+
+.driftReading > * { position: relative; z-index: 1; }
+
+.driftReading strong {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(3.4rem, 5vw, 5.1rem);
+  font-weight: 400;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+}
+
+.driftReading small,
+.driftReading span {
+  color: var(--ink-muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.59rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.driftReading span { margin-top: 0.6rem; }
+
+.driftPlot {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.driftPlot > p {
+  margin: 0 0 0.45rem;
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.driftRow {
+  appearance: none;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 7.5rem minmax(7rem, 1fr) 5.2rem;
+  gap: 0.8rem;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.8rem;
+  background: transparent;
+  padding: 0.65rem 0.7rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.driftRow:hover,
+.driftRow:focus-visible,
+.driftRow[data-active="true"] {
+  border-color: #d9dbe5;
+  outline: none;
+  background: #f8f7f4;
+}
+
+.driftRow > span:first-child {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.driftRow > strong {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.67rem;
+  text-align: right;
+}
+
+.driftTrack {
+  position: relative;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(49, 92, 245, 0.3), rgba(213, 186, 150, 0.55), rgba(244, 86, 46, 0.5));
+}
+
+.driftTrack::after {
+  position: absolute;
+  top: 50%;
+  left: var(--marker-position);
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--marker-color);
+  box-shadow: 0 0 0 1px var(--marker-color);
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.driftDetail {
+  min-height: 5.25rem;
+  margin-top: 1rem;
+  border: 1px solid #d9dbe5;
+  border-radius: 1rem;
+  background: #f8f7f4;
+  padding: 0.9rem 1rem;
+}
+
+.driftDetail header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.driftDetail header span {
+  color: var(--fp32-deep);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.driftDetail header strong {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 400;
+}
+
+.driftDetail p {
+  margin: 0.35rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.driftCaption {
+  margin: 0.8rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 1050px) {
+  .accuracyGrid { grid-template-columns: minmax(0, 1fr) 9rem minmax(0, 1fr); }
+  .classExplorer { grid-template-columns: 1fr; }
+  .driftBody { grid-template-columns: 12rem minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .metricReadout { grid-template-columns: 1fr; gap: 0.3rem; }
+  .accuracyGrid { grid-template-columns: 1fr; }
+  .deltaCard { min-height: 8rem; }
+  .classReadout { grid-template-columns: repeat(3, 1fr); }
+  .classReadout > div:first-child { grid-column: 1 / -1; }
+  .classControls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .driftBody { grid-template-columns: 1fr; }
+  .driftReading { width: min(14rem, 75vw); }
+}
+
+@media (max-width: 480px) {
+  .chartCanvas { min-width: 760px; }
+  .classReadout { gap: 0.65rem; }
+  .driftRow { grid-template-columns: 6.4rem minmax(5rem, 1fr) 4.5rem; gap: 0.45rem; padding-inline: 0.35rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accuracyCard,
+  .deltaCard,
+  .driftReading { transition: none; }
+}
