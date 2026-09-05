@@ -9,6 +9,7 @@ import os
 import platform
 import random
 import re
+import struct
 import tempfile
 from collections.abc import Callable, Mapping
 from copy import deepcopy
@@ -17,7 +18,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from quantize.run_ptq import evaluate_classifier, quantize_fx_post_training
+from quantize.run_ptq import (
+    ClassificationOutputs,
+    evaluate_classifier,
+    quantize_fx_post_training,
+)
 from validation.report import build_validation_report
 from validation.serializer import write_report
 
@@ -198,6 +203,22 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _classification_outputs_sha256(outputs: ClassificationOutputs) -> str:
+    """Fingerprint the exact ordered labels, predictions, and probabilities."""
+
+    digest = hashlib.sha256(b"fidelity-classification-outputs-v1\0")
+    for target, prediction, probabilities in zip(
+        outputs.targets,
+        outputs.predictions,
+        outputs.probabilities,
+        strict=True,
+    ):
+        digest.update(struct.pack("<qqI", target, prediction, len(probabilities)))
+        for probability in probabilities:
+            digest.update(struct.pack("<d", probability))
+    return digest.hexdigest()
+
+
 def atomic_json_write(payload: Mapping[str, Any], output_path: Path) -> Path:
     """Write small provenance documents atomically and with stable JSON bytes."""
 
@@ -337,7 +358,12 @@ def _metadata(
     calibration_batches: int,
     training_history: list[dict[str, Any]],
     evaluated_sample_count: int,
+    reference_outputs: ClassificationOutputs,
+    candidate_outputs: ClassificationOutputs,
 ) -> dict[str, Any]:
+    dataset_archive = (
+        Path(config.data_dir).expanduser().resolve() / "cifar-10-python.tar.gz"
+    )
     return {
         "format_version": 1,
         "kind": "fidelity_cifar10_pipeline_run",
@@ -347,6 +373,9 @@ def _metadata(
         "dataset": {
             "name": "CIFAR-10",
             "classes": list(CIFAR10_CLASSES),
+            "source_archive_sha256": (
+                _sha256_file(dataset_archive) if dataset_archive.is_file() else None
+            ),
             "held_out_test_order_sha256": loaders.test_order_sha256,
             "held_out_test_sample_count": evaluated_sample_count,
             "calibration_split": "train",
@@ -370,12 +399,20 @@ def _metadata(
             "backend": quantization_backend,
             "calibration_batches_observed": calibration_batches,
         },
+        "evaluation": {
+            "reference_outputs_sha256": _classification_outputs_sha256(
+                reference_outputs
+            ),
+            "candidate_outputs_sha256": _classification_outputs_sha256(
+                candidate_outputs
+            ),
+        },
         "artifacts": {
-            "checkpoint": str(checkpoint_path),
+            "checkpoint": checkpoint_path.name,
             "checkpoint_sha256": _sha256_file(checkpoint_path),
-            "quantized_model": str(quantized_model_path),
+            "quantized_model": quantized_model_path.name,
             "quantized_model_sha256": _sha256_file(quantized_model_path),
-            "validation_report": str(report_path),
+            "validation_report": report_path.name,
             "validation_report_sha256": _sha256_file(report_path),
         },
         "config": _config_record(config),
@@ -594,6 +631,8 @@ def run_pipeline(
                 calibration_batches=ptq.calibration_batches,
                 training_history=training_history,
                 evaluated_sample_count=reference_outputs.sample_count,
+                reference_outputs=reference_outputs,
+                candidate_outputs=candidate_outputs,
             ),
             run_dir / "metadata.json",
         )

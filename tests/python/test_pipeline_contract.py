@@ -16,6 +16,7 @@ from pipeline.cli import build_parser
 from pipeline.data import CifarLoaders, _stable_indices_hash
 from pipeline.runner import (
     PipelineConfig,
+    _classification_outputs_sha256,
     _cosine_learning_rate,
     _validate_resume_config,
     atomic_json_write,
@@ -78,6 +79,28 @@ class PipelineContractTests(unittest.TestCase):
         self.assertNotEqual(
             _stable_indices_hash([0, 1, 2], labels),
             _stable_indices_hash([2, 1, 0], labels),
+        )
+
+    def test_output_fingerprint_covers_order_and_probabilities(self) -> None:
+        first = ClassificationOutputs(
+            targets=(0, 1),
+            predictions=(0, 1),
+            probabilities=((0.8, 0.2), (0.1, 0.9)),
+            correct_count=2,
+        )
+        changed = ClassificationOutputs(
+            targets=(0, 1),
+            predictions=(0, 1),
+            probabilities=((0.81, 0.19), (0.1, 0.9)),
+            correct_count=2,
+        )
+        self.assertEqual(
+            _classification_outputs_sha256(first),
+            _classification_outputs_sha256(first),
+        )
+        self.assertNotEqual(
+            _classification_outputs_sha256(first),
+            _classification_outputs_sha256(changed),
         )
 
     def test_atomic_json_writer_round_trips_stable_document(self) -> None:
