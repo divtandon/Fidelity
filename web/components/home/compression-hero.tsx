@@ -3,9 +3,15 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, BookOpen } from "lucide-react";
-import { useMotionValueEvent, useScroll } from "motion/react";
+import { useAnimationFrame, useMotionValue } from "motion/react";
 
 import { CompressionVisual } from "@/components/three/compression-visual";
+import { usePrefersReducedMotion } from "@/lib/reduced-motion";
+import {
+  COMPRESSION_PROGRESS_MIN,
+  getCompressionStageIndex,
+  getContinuousCompressionProgress,
+} from "@/lib/three/continuous-progress";
 
 export type FeaturedRunSummary = {
   href: string;
@@ -25,9 +31,12 @@ const stages = [
 ];
 
 export function CompressionHero({ featuredRun }: { featuredRun: FeaturedRunSummary }) {
-  const heroRef = useRef<HTMLElement>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
+  const elapsedRef = useRef(0);
+  const stageRef = useRef(0);
   const [activeStage, setActiveStage] = useState(0);
+  const reduceMotion = usePrefersReducedMotion();
+  const sceneProgress = useMotionValue(COMPRESSION_PROGRESS_MIN);
   const metrics = [
     {
       label: featuredRun.reference.precision,
@@ -44,21 +53,34 @@ export function CompressionHero({ featuredRun }: { featuredRun: FeaturedRunSumma
     { label: "Delta", value: featuredRun.delta, tone: "neutral" },
     { label: "p-value", value: featuredRun.pValue, tone: "neutral" },
   ];
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end end"],
-  });
+  useAnimationFrame((_time, delta) => {
+    if (reduceMotion) {
+      sceneProgress.set(COMPRESSION_PROGRESS_MIN);
+      if (stageRef.current !== 0) {
+        stageRef.current = 0;
+        setActiveStage(0);
+      }
+      return;
+    }
 
-  useMotionValueEvent(scrollYProgress, "change", (value) => {
-    const nextStage = Math.min(stages.length - 1, Math.floor(value * stages.length));
-    setActiveStage((current) => current === nextStage ? current : nextStage);
+    if (document.visibilityState === "hidden") return;
+    elapsedRef.current += Math.min(delta, 50);
+    const nextProgress = getContinuousCompressionProgress(elapsedRef.current);
+    sceneProgress.set(nextProgress);
+
+    const nextStage = getCompressionStageIndex(nextProgress, stages.length);
+    if (nextStage !== stageRef.current) {
+      stageRef.current = nextStage;
+      setActiveStage(nextStage);
+    }
   });
 
   return (
     <section
       className="hero"
       aria-labelledby="hero-title"
-      ref={heroRef}
+      data-animation="continuous"
+      data-animation-stage={activeStage}
       onPointerMove={(event) => {
         pointerRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
         pointerRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -70,7 +92,7 @@ export function CompressionHero({ featuredRun }: { featuredRun: FeaturedRunSumma
     >
       <div className="hero__stage">
       <div className="hero__visual" aria-hidden="true">
-        <CompressionVisual progress={scrollYProgress} pointer={pointerRef} />
+        <CompressionVisual progress={sceneProgress} pointer={pointerRef} />
         <div className="hero__wash" />
       </div>
       <div className="hero-annotation hero-annotation--reference" aria-hidden="true"><i /><span>FP32</span><small>Reference model<br />high precision</small></div>
@@ -107,8 +129,8 @@ export function CompressionHero({ featuredRun }: { featuredRun: FeaturedRunSumma
           </dl>
         </div>
       </div>
-      <a className="scroll-cue" href="#why-fidelity"><span>Scroll to inspect</span><i><ArrowDown size={13} /></i></a>
-      <div className="hero-stage-progress" aria-live="polite">
+      <a className="scroll-cue" href="#why-fidelity"><span>Explore the evidence</span><i><ArrowDown size={13} /></i></a>
+      <div className="hero-stage-progress" aria-hidden="true">
         <span>{String(activeStage + 1).padStart(2, "0")}</span>
         <strong>{stages[activeStage]}</strong>
         <div aria-hidden="true">

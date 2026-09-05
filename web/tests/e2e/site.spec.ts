@@ -54,20 +54,18 @@ test.describe("public experience", () => {
     await expect(page).toHaveURL(/\/docs$/);
   });
 
-  test("the compact hero preserves a meaningful compression timeline", async ({ page }) => {
+  test("the compact hero starts its live animation without scrolling", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    const stage = page.locator(".hero-stage-progress strong");
+    const hero = page.locator(".hero");
 
-    await expect(stage).toHaveText("Reference model");
-    await expect(page.locator(".compression-canvas")).toHaveCount(0);
-    await page.evaluate(() => window.scrollTo(0, 275));
-    await expect(stage).toHaveText("Quantizing to INT8");
-    await expect(page.locator(".compression-visual")).toBeInViewport({ ratio: 0.75 });
+    await expect(hero).toHaveAttribute("data-animation", "continuous");
     await expect(page.locator(".compression-canvas")).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, 540));
-    await expect(stage).toHaveText("Validation complete");
     await expect(page.locator(".compression-visual")).toBeInViewport({ ratio: 0.75 });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect.poll(async () => Number(await hero.getAttribute("data-animation-stage")), {
+      timeout: 5_000,
+    }).toBeGreaterThan(0);
   });
 
   test("reduced motion still exposes the hero content", async ({ page }) => {
@@ -77,6 +75,11 @@ test.describe("public experience", () => {
     await expect(page.getByRole("heading", { level: 1, name: /Prove the model/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "View verified report", exact: true }).first()).toBeVisible();
     await expect(page.locator(".compression-canvas")).toHaveCount(0);
+    await expect(page.locator(".scene-poster")).toBeVisible();
+    await page.locator(".hero").dispatchEvent("pointerdown");
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".compression-canvas")).toHaveCount(0);
+    await expect(page.locator(".hero")).toHaveAttribute("data-animation-stage", "0");
     expect(errors).toEqual([]);
   });
 

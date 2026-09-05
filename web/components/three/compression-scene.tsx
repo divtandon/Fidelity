@@ -13,9 +13,11 @@ type CompressionSceneProps = {
   progress: MotionValue<number>;
   pointer: RefObject<{ x: number; y: number }>;
   compact: boolean;
+  onReady: () => void;
+  onFailure: () => void;
 };
 
-function CompressionRig({ progress, pointer, compact }: CompressionSceneProps) {
+function CompressionRig({ progress, pointer, compact }: Pick<CompressionSceneProps, "progress" | "pointer" | "compact">) {
   const rigRef = useRef<THREE.Group>(null);
   const { width, height } = useThree((state) => state.size);
   const aspect = width / height;
@@ -45,22 +47,23 @@ function CompressionRig({ progress, pointer, compact }: CompressionSceneProps) {
   );
 }
 
-class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class SceneErrorBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch() { /* Poster remains visible below this layer. */ }
+  componentDidCatch() { this.props.onFailure(); }
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-export function CompressionScene({ progress, pointer, compact }: CompressionSceneProps) {
+export function CompressionScene({ progress, pointer, compact, onReady, onFailure }: CompressionSceneProps) {
   return (
-    <SceneErrorBoundary>
+    <SceneErrorBoundary onFailure={onFailure}>
       <div className="compression-canvas">
         <Canvas
           dpr={compact ? 1 : [1, 1.5]}
           frameloop="always"
           camera={{ position: [0, 0, 9], fov: 43, near: 0.1, far: 40 }}
           gl={{ antialias: !compact, alpha: true, powerPreference: "high-performance" }}
+          onCreated={onReady}
         >
           <ambientLight intensity={2.05} color="#f7f3ff" />
           <directionalLight position={[1, 4, 6]} intensity={3.7} color="#fff1e5" />
