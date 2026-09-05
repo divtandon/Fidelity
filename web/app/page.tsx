@@ -1,69 +1,144 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Braces, ChartNoAxesCombined, ScanSearch } from "lucide-react";
+
+import { CompressionHero } from "@/components/home/compression-hero";
+
+const evidenceLayers = [
+  {
+    index: "01",
+    title: "Overall accuracy",
+    copy: "Start with the broad signal: how many predictions stayed correct after compression?",
+    meta: "Top-1 · paired examples",
+  },
+  {
+    index: "02",
+    title: "Per-class behavior",
+    copy: "Surface the categories that moved most, even when the aggregate barely changes.",
+    meta: "Class deltas · ranked",
+  },
+  {
+    index: "03",
+    title: "Prediction drift",
+    copy: "Measure how the complete output distributions changed—not only the winning labels.",
+    meta: "KL divergence · mean",
+  },
+  {
+    index: "04",
+    title: "Paired significance",
+    copy: "Publish the test, decision level, assumptions, and limit of the conclusion together.",
+    meta: "Wilcoxon · transparent",
+  },
+];
+
+const chapters = [
+  {
+    number: "I",
+    title: "Compare the same examples",
+    copy: "Every sample is evaluated by both the reference model and compressed candidate, preserving the paired evidence.",
+  },
+  {
+    number: "II",
+    title: "Find hidden drift",
+    copy: "Inspect aggregate accuracy, class-level changes, and prediction distributions in one report.",
+  },
+  {
+    number: "III",
+    title: "State only what the evidence supports",
+    copy: "Keep the policy, statistical assumptions, and limitations next to the verdict—not in fine print.",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main id="main-content">
+      <CompressionHero />
+
+      <section className="signal-rail" aria-label="Fidelity validation workflow">
+        <div className="page-shell signal-rail__inner">
+          <span>Reference</span><i aria-hidden="true" />
+          <span>Quantize</span><i aria-hidden="true" />
+          <span>Compare</span><i aria-hidden="true" />
+          <span>Decide</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      <section className="editorial-section" id="why-fidelity">
+        <div className="page-shell">
+          <div className="editorial-intro">
+            <div>
+              <p className="eyebrow"><ScanSearch size={14} /> Why Fidelity</p>
+              <h2>Aggregate accuracy can hide a model changing its mind.</h2>
+            </div>
+            <p className="editorial-intro__copy">
+              A compressed model can look stable overall while individual classes slip or prediction
+              confidence shifts. Fidelity keeps the paired evidence visible.
+            </p>
+          </div>
+
+          <div className="chapter-grid">
+            {chapters.map((chapter) => (
+              <article className="chapter-card" key={chapter.number}>
+                <span className="chapter-card__number">{chapter.number}</span>
+                <div><h3>{chapter.title}</h3><p>{chapter.copy}</p></div>
+              </article>
+            ))}
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="evidence-section">
+        <div className="evidence-section__orb evidence-section__orb--blue" aria-hidden="true" />
+        <div className="evidence-section__orb evidence-section__orb--orange" aria-hidden="true" />
+        <div className="page-shell evidence-layout">
+          <div className="evidence-heading">
+            <p className="eyebrow eyebrow--light"><ChartNoAxesCombined size={14} /> The evidence stack</p>
+            <h2>One run.<br />Four layers of evidence.</h2>
+            <p>
+              The dashboard starts with the decision, then lets reviewers move from plain language to
+              the exact measurements behind it.
+            </p>
+            <Link className="text-link text-link--light" href="/runs/demo">
+              Inspect the demo report <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          <ol className="evidence-list">
+            {evidenceLayers.map((layer) => (
+              <li key={layer.index}>
+                <span className="evidence-list__index">{layer.index}</span>
+                <div><h3>{layer.title}</h3><p>{layer.copy}</p></div>
+                <span className="evidence-list__meta">{layer.meta}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="principle-section">
+        <div className="page-shell principle-layout">
+          <p className="eyebrow"><Braces size={14} /> Built around a typed contract</p>
+          <blockquote>“A smaller model should carry its <em>proof</em> with it.”</blockquote>
+          <div className="principle-copy">
+            <p>
+              Python computes the evidence. A versioned JSON report records it. The interface validates
+              that contract before rendering a single conclusion.
+            </p>
+            <Link className="text-link" href="/docs">
+              Inspect the architecture <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="closing-section">
+        <div className="page-shell closing-card">
+          <div><p className="eyebrow eyebrow--light">Open the instrument</p><h2>See what changed.<br />Decide with evidence.</h2></div>
+          <div className="closing-card__actions">
+            <Link className="button button--paper" href="/runs/demo">Explore a validation <ArrowRight size={17} /></Link>
+            <Link className="button button--ghost-light" href="/methods">Read the method</Link>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
