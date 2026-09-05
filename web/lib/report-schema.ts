@@ -42,13 +42,13 @@ const confidenceDriftSchema = z.object({
   direction: z.literal("reference_to_candidate"),
   unit: z.literal("nats"),
   epsilon: finiteNumber.positive(),
-  sample_count: z.number().int().positive(),
+  sample_count: z.number().int().positive().max(10_000_000),
 }).strict();
 
 const classAccuracySchema = z.object({
   class_id: z.number().int().nonnegative(),
   class_name: z.string().min(1),
-  sample_count: z.number().int().positive(),
+  sample_count: z.number().int().positive().max(10_000_000),
   reference_correct: z.number().int().nonnegative(),
   candidate_correct: z.number().int().nonnegative(),
   reference_accuracy: probability,
@@ -76,7 +76,7 @@ export const validationReportSchema = z.object({
   created_at: z.iso.datetime({ offset: true }),
   model: z.string().min(1),
   dataset: z.string().min(1),
-  sample_count: z.number().int().positive(),
+  sample_count: z.number().int().positive().max(10_000_000),
   reference: modelMetricsSchema,
   candidate: modelMetricsSchema,
   accuracy_delta_pp: finiteNumber,

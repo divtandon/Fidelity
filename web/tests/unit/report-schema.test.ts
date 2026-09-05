@@ -29,4 +29,11 @@ describe("validation report boundary", () => {
 
     expect(() => parseValidationReport(invalid)).toThrow("Class totals do not reconcile with aggregate counts.");
   });
+
+  it("caps reports at the shared ten-million-sample safety boundary", () => {
+    const invalid = structuredClone(demoReport);
+    invalid.sample_count = 10_000_001;
+
+    expect(() => parseValidationReport(invalid)).toThrow();
+  });
 });
