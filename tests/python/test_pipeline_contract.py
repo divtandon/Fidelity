@@ -113,6 +113,22 @@ class PipelineContractTests(unittest.TestCase):
             )
             self.assertTrue(path.read_text(encoding="utf-8").endswith("\n"))
 
+    def test_config_and_metadata_reject_non_finite_numbers(self) -> None:
+        for field, value in (
+            ("learning_rate", float("nan")),
+            ("momentum", float("inf")),
+        ):
+            with (
+                self.subTest(field=field),
+                self.assertRaisesRegex(ValueError, "optimizer"),
+            ):
+                PipelineConfig(**{field: value}).validate()
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            self.assertRaises(ValueError),
+        ):
+            atomic_json_write({"invalid": float("nan")}, Path(temporary) / "bad.json")
+
     def test_cli_defaults_to_dataset_download_but_can_be_offline(self) -> None:
         self.assertTrue(build_parser().parse_args([]).download)
         self.assertFalse(build_parser().parse_args(["--no-download"]).download)
@@ -134,10 +150,18 @@ class PipelineContractTests(unittest.TestCase):
             "momentum": 0.9,
             "weight_decay": 5e-4,
             "train_batch_size": 128,
+            "num_workers": 2,
+            "training_device": "cpu",
         }
-        observed = {"train_config": {**expected, "target_epochs": 30}}
-        with self.assertRaisesRegex(ValueError, "target_epochs"):
-            _validate_resume_config(observed, expected)
+        for field, changed_value in (
+            ("target_epochs", 30),
+            ("num_workers", 0),
+            ("training_device", "cuda"),
+        ):
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, field):
+                _validate_resume_config(
+                    {"train_config": {**expected, field: changed_value}}, expected
+                )
 
     def test_orchestrator_only_reports_paired_observed_outputs(self) -> None:
         """Mock ML work, but verify report inputs and ordered-target enforcement."""
@@ -209,6 +233,7 @@ class PipelineContractTests(unittest.TestCase):
                 atomic_torch_save=fake_save,
                 save_checkpoint=lambda **kwargs: fake_save({}, kwargs["output_path"]),
                 load_checkpoint=lambda **_kwargs: {
+                    "_source_sha256": "a" * 64,
                     "seed": 2026,
                     "epoch": 0,
                     "train_config": {
@@ -228,18 +253,21 @@ class PipelineContractTests(unittest.TestCase):
             ),
             patch.dict(sys.modules, {"torchvision": fake_torchvision}),
         ):
+            resume_source = Path(temporary) / "existing.pt"
+            resume_source.write_bytes(b"source-checkpoint")
             result = run_pipeline(
                 PipelineConfig(
                     artifacts_dir=Path(temporary),
                     latest_report_path=Path(temporary) / "latest-report.json",
                     run_id="paired-output-test",
-                    resume_checkpoint=Path(temporary) / "existing.pt",
+                    resume_checkpoint=resume_source,
                     epochs=0,
                     num_workers=0,
                     calibration_samples=1,
                 ),
                 log=None,
             )
+            metadata = json.loads(result.metadata_path.read_text(encoding="utf-8"))
 
         self.assertEqual(captured["targets"], reference.targets)
         self.assertEqual(captured["reference_predictions"], reference.predictions)
@@ -251,6 +279,13 @@ class PipelineContractTests(unittest.TestCase):
             result.latest_report_path,
             (Path(temporary) / "latest-report.json").resolve(),
         )
+        self.assertEqual(metadata["format_version"], 2)
+        self.assertEqual(metadata["training"]["checkpoint_completed_epoch"], 0)
+        self.assertEqual(metadata["training"]["epochs_executed_this_run"], 0)
+        self.assertEqual(
+            metadata["training"]["resume_source"]["filename"], "existing.pt"
+        )
+        self.assertEqual(metadata["training"]["checkpoint_config"]["target_epochs"], 0)
 
 
 if __name__ == "__main__":

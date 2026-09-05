@@ -82,7 +82,18 @@ class PipelineConfig:
             raise ValueError("batch sizes must be positive")
         if self.num_workers < 0:
             raise ValueError("num_workers cannot be negative")
-        if (
+        optimizer_values = (
+            self.learning_rate,
+            self.min_learning_rate,
+            self.momentum,
+            self.weight_decay,
+        )
+        if any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            for value in optimizer_values
+        ) or (
             self.learning_rate <= 0.0
             or self.min_learning_rate < 0.0
             or self.min_learning_rate > self.learning_rate
@@ -152,6 +163,13 @@ def seed_everything(seed: int) -> None:
     if hasattr(torch.backends, "cudnn"):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
+
+
+def _seed_training_epoch(loader: Any, seed: int) -> None:
+    """Seed main-process transforms and DataLoader workers for one epoch."""
+
+    seed_everything(seed)
+    set_loader_epoch_seed(loader, seed)
 
 
 def resolve_training_device(requested: DeviceChoice) -> str:
@@ -225,7 +243,14 @@ def atomic_json_write(payload: Mapping[str, Any], output_path: Path) -> Path:
     destination = Path(output_path).expanduser().resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
     serialized = (
-        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+        json.dumps(
+            payload,
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + "\n"
     )
     temporary_name: str | None = None
     try:
@@ -300,6 +325,7 @@ def _checkpoint_config(config: PipelineConfig, training_device: str) -> dict[str
         "momentum": config.momentum,
         "weight_decay": config.weight_decay,
         "train_batch_size": config.train_batch_size,
+        "num_workers": config.num_workers,
     }
 
 
@@ -331,6 +357,8 @@ def _validate_resume_config(
         "momentum",
         "weight_decay",
         "train_batch_size",
+        "num_workers",
+        "training_device",
     )
     changed = [
         field for field in stable_fields if observed.get(field) != expected[field]
@@ -357,6 +385,9 @@ def _metadata(
     quantization_backend: str,
     calibration_batches: int,
     training_history: list[dict[str, Any]],
+    checkpoint_training_config: Mapping[str, Any],
+    checkpoint_completed_epoch: int,
+    resume_source: Mapping[str, str] | None,
     evaluated_sample_count: int,
     reference_outputs: ClassificationOutputs,
     candidate_outputs: ClassificationOutputs,
@@ -365,7 +396,7 @@ def _metadata(
         Path(config.data_dir).expanduser().resolve() / "cifar-10-python.tar.gz"
     )
     return {
-        "format_version": 1,
+        "format_version": 2,
         "kind": "fidelity_cifar10_pipeline_run",
         "run_id": run_id,
         "created_at": created_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
@@ -415,8 +446,14 @@ def _metadata(
             "validation_report": report_path.name,
             "validation_report_sha256": _sha256_file(report_path),
         },
-        "config": _config_record(config),
-        "training_history": training_history,
+        "training": {
+            "checkpoint_completed_epoch": checkpoint_completed_epoch,
+            "checkpoint_config": dict(checkpoint_training_config),
+            "epochs_executed_this_run": len(training_history),
+            "history_this_run": training_history,
+            "resume_source": dict(resume_source) if resume_source is not None else None,
+        },
+        "execution_config": _config_record(config),
     }
 
 
@@ -470,14 +507,23 @@ def run_pipeline(
         )
         criterion = torch.nn.CrossEntropyLoss()
         start_epoch = 0
+        resume_source: dict[str, str] | None = None
         checkpoint_config = _checkpoint_config(config, training_device)
         if config.resume_checkpoint is not None:
+            resume_path = Path(config.resume_checkpoint).expanduser().resolve()
             resume = load_checkpoint(
                 model=model,
                 optimizer=optimizer,
-                checkpoint_path=config.resume_checkpoint,
+                checkpoint_path=resume_path,
                 device=training_device,
             )
+            source_sha256 = resume.get("_source_sha256")
+            if not isinstance(source_sha256, str) or len(source_sha256) != 64:
+                raise ValueError("resume checkpoint loader did not return its SHA-256")
+            resume_source = {
+                "filename": resume_path.name,
+                "sha256": source_sha256,
+            }
             if resume.get("seed") != config.seed:
                 raise ValueError(
                     "resume checkpoint seed differs from --seed; choose the original "
@@ -503,7 +549,12 @@ def run_pipeline(
             learning_rate = _cosine_learning_rate(config, epoch)
             for parameter_group in optimizer.param_groups:
                 parameter_group["lr"] = learning_rate
-            set_loader_epoch_seed(loaders.train, config.seed + 1000 + epoch)
+            epoch_seed = config.seed + 1000 + epoch
+            # With worker processes, DataLoader derives each worker RNG from
+            # its generator. With ``num_workers=0``, transforms use the main
+            # process RNG. Seed both paths from the epoch index so an honest
+            # resume observes the same sampling and augmentation stream.
+            _seed_training_epoch(loaders.train, epoch_seed)
             mean_loss, sample_count = _train_one_epoch(
                 model=model,
                 loader=loaders.train,
@@ -542,6 +593,7 @@ def run_pipeline(
                 train_config=checkpoint_config,
                 output_path=checkpoint_path,
             )
+        checkpoint_completed_epoch = config.epochs if config.epochs > 0 else start_epoch
 
         # Compare CPU FP32 and CPU INT8 execution so confidence drift isolates
         # quantization rather than mixing in CPU/GPU numeric differences.
@@ -630,6 +682,9 @@ def run_pipeline(
                 quantization_backend=ptq.backend,
                 calibration_batches=ptq.calibration_batches,
                 training_history=training_history,
+                checkpoint_training_config=checkpoint_config,
+                checkpoint_completed_epoch=checkpoint_completed_epoch,
+                resume_source=resume_source,
                 evaluated_sample_count=reference_outputs.sample_count,
                 reference_outputs=reference_outputs,
                 candidate_outputs=candidate_outputs,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import tempfile
 from collections.abc import Mapping
@@ -106,10 +107,18 @@ def load_checkpoint(
     source = Path(checkpoint_path).expanduser().resolve()
     if not source.is_file():
         raise FileNotFoundError(f"resume checkpoint does not exist: {source}")
-    try:
-        payload = torch.load(source, map_location=device, weights_only=False)
-    except TypeError:  # pragma: no cover - old supported Torch fallback
-        payload = torch.load(source, map_location=device)
+    # Hash and load through the same open handle so provenance always names
+    # the exact bytes that were deserialized, even if the path is replaced by
+    # another process during a long run.
+    with source.open("rb") as checkpoint_file:
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: checkpoint_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+        checkpoint_file.seek(0)
+        # Fidelity checkpoints contain only tensors and primitive containers.
+        # Restrict unpickling to PyTorch's safe weights allow-list; never
+        # execute arbitrary pickle payloads supplied as a resume checkpoint.
+        payload = torch.load(checkpoint_file, map_location=device, weights_only=True)
     if not isinstance(payload, dict):
         raise TypeError("resume checkpoint must contain a mapping")
     if payload.get("format_version") != 1:
@@ -125,4 +134,5 @@ def load_checkpoint(
         raise TypeError("resume checkpoint is missing optimizer_state")
     model.load_state_dict(payload["model_state"])
     optimizer.load_state_dict(payload["optimizer_state"])
+    payload["_source_sha256"] = digest.hexdigest()
     return payload
