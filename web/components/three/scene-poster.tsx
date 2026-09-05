@@ -7,7 +7,15 @@ type ScenePosterProps = {
 export function ScenePoster({ className = "" }: ScenePosterProps) {
   return (
     <div className={`scene-poster ${className}`} aria-hidden="true">
-      <Image src="/quantization-poster.png" alt="" fill priority quality={90} sizes="100vw" />
+      <Image
+        src="/quantization-poster.png"
+        alt=""
+        fill
+        preload
+        fetchPriority="high"
+        quality={90}
+        sizes="100vw"
+      />
     </div>
   );
 }

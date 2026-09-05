@@ -11,9 +11,10 @@ const COUNT = SIDE ** 3;
 
 type INT8VoxelModelProps = {
   progress: MotionValue<number>;
+  compact: boolean;
 };
 
-export function INT8VoxelModel({ progress }: INT8VoxelModelProps) {
+export function INT8VoxelModel({ progress, compact }: INT8VoxelModelProps) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
@@ -47,13 +48,17 @@ export function INT8VoxelModel({ progress }: INT8VoxelModelProps) {
     <group ref={groupRef} position={[3.2, 0, 0]} scale={0.08}>
       <instancedMesh ref={meshRef} args={[undefined, undefined, COUNT]}>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
-        <meshPhysicalMaterial color="#ff532d" emissive="#ff3815" emissiveIntensity={0.33} metalness={0.2} roughness={0.2} clearcoat={1} />
+        {compact ? (
+          <meshStandardMaterial color="#ff532d" emissive="#ff3815" emissiveIntensity={0.33} metalness={0.16} roughness={0.24} />
+        ) : (
+          <meshPhysicalMaterial color="#ff532d" emissive="#ff3815" emissiveIntensity={0.33} metalness={0.2} roughness={0.2} clearcoat={1} />
+        )}
       </instancedMesh>
-      <mesh>
+      {!compact ? <mesh>
         <boxGeometry args={[1.45, 1.45, 1.45]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         <Edges color="#ff8e6f" lineWidth={1.2} />
-      </mesh>
+      </mesh> : null}
       <pointLight color="#ff4b27" intensity={2.2} distance={4} decay={2} />
     </group>
   );

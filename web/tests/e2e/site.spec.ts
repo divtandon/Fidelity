@@ -60,9 +60,11 @@ test.describe("public experience", () => {
     const stage = page.locator(".hero-stage-progress strong");
 
     await expect(stage).toHaveText("Reference model");
+    await expect(page.locator(".compression-canvas")).toHaveCount(0);
     await page.evaluate(() => window.scrollTo(0, 275));
     await expect(stage).toHaveText("Quantizing to INT8");
     await expect(page.locator(".compression-visual")).toBeInViewport({ ratio: 0.75 });
+    await expect(page.locator(".compression-canvas")).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, 540));
     await expect(stage).toHaveText("Validation complete");
     await expect(page.locator(".compression-visual")).toBeInViewport({ ratio: 0.75 });
@@ -74,6 +76,7 @@ test.describe("public experience", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: /Prove the model/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "View verified report", exact: true }).first()).toBeVisible();
+    await expect(page.locator(".compression-canvas")).toHaveCount(0);
     expect(errors).toEqual([]);
   });
 

@@ -12,9 +12,10 @@ import { INT8VoxelModel } from "@/components/three/int8-voxel-model";
 type CompressionSceneProps = {
   progress: MotionValue<number>;
   pointer: RefObject<{ x: number; y: number }>;
+  compact: boolean;
 };
 
-function CompressionRig({ progress, pointer }: CompressionSceneProps) {
+function CompressionRig({ progress, pointer, compact }: CompressionSceneProps) {
   const rigRef = useRef<THREE.Group>(null);
   const { width, height } = useThree((state) => state.size);
   const sceneScale = Math.min(1.02, Math.max(0.3, (width / height) * 0.72));
@@ -28,8 +29,8 @@ function CompressionRig({ progress, pointer }: CompressionSceneProps) {
   return (
     <group ref={rigRef} position={[sceneX, 0.12, 0]} scale={sceneScale}>
       <FP32ParticleField progress={progress} pointer={pointer} />
-      <CompressionAperture progress={progress} />
-      <INT8VoxelModel progress={progress} />
+      <CompressionAperture progress={progress} compact={compact} />
+      <INT8VoxelModel progress={progress} compact={compact} />
     </group>
   );
 }
@@ -41,19 +42,19 @@ class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
   render() { return this.state.failed ? null : this.props.children; }
 }
 
-export function CompressionScene({ progress, pointer }: CompressionSceneProps) {
+export function CompressionScene({ progress, pointer, compact }: CompressionSceneProps) {
   return (
     <SceneErrorBoundary>
       <div className="compression-canvas">
         <Canvas
-          dpr={[1, 1.5]}
+          dpr={compact ? 1 : [1, 1.5]}
           camera={{ position: [0, 0, 9], fov: 43, near: 0.1, far: 40 }}
-          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+          gl={{ antialias: !compact, alpha: true, powerPreference: "high-performance" }}
         >
           <ambientLight intensity={1.6} color="#f7f3ff" />
           <directionalLight position={[1, 4, 6]} intensity={2.6} color="#fff4e9" />
           <directionalLight position={[-5, -2, 3]} intensity={1.2} color="#7791ff" />
-          <Suspense fallback={null}><CompressionRig progress={progress} pointer={pointer} /></Suspense>
+          <Suspense fallback={null}><CompressionRig progress={progress} pointer={pointer} compact={compact} /></Suspense>
         </Canvas>
       </div>
     </SceneErrorBoundary>

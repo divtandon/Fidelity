@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { useInView, type MotionValue } from "motion/react";
 
@@ -18,6 +18,7 @@ type CompressionVisualProps = {
 };
 
 let cachedWebGLSupport: boolean | undefined;
+const COMPACT_SCENE_QUERY = "(max-width: 820px)";
 
 function getWebGLSupport() {
   if (cachedWebGLSupport !== undefined) return cachedWebGLSupport;
@@ -39,6 +40,16 @@ function subscribeToPageVisibility(callback: () => void) {
   return () => document.removeEventListener("visibilitychange", callback);
 }
 
+function subscribeToCompactScene(callback: () => void) {
+  const media = window.matchMedia(COMPACT_SCENE_QUERY);
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+}
+
+function isCompactScene() {
+  return window.matchMedia(COMPACT_SCENE_QUERY).matches;
+}
+
 function isPageVisible() {
   return document.visibilityState !== "hidden";
 }
@@ -53,12 +64,39 @@ export function CompressionVisual({ progress, pointer }: CompressionVisualProps)
     isPageVisible,
     () => false,
   );
-  const showLiveScene = !reduceMotion && inView && supportsWebGL && pageVisible;
+  const compactScene = useSyncExternalStore(
+    subscribeToCompactScene,
+    isCompactScene,
+    () => false,
+  );
+  const [compactSceneRequested, setCompactSceneRequested] = useState(false);
+
+  useEffect(() => {
+    if (!compactScene || compactSceneRequested) return;
+
+    const requestScene = () => setCompactSceneRequested(true);
+    if (window.scrollY > 4) {
+      requestScene();
+      return;
+    }
+
+    window.addEventListener("scroll", requestScene, { passive: true, once: true });
+    window.addEventListener("pointerdown", requestScene, { passive: true, once: true });
+    window.addEventListener("keydown", requestScene, { once: true });
+    return () => {
+      window.removeEventListener("scroll", requestScene);
+      window.removeEventListener("pointerdown", requestScene);
+      window.removeEventListener("keydown", requestScene);
+    };
+  }, [compactScene, compactSceneRequested]);
+
+  const compactSceneReady = !compactScene || compactSceneRequested;
+  const showLiveScene = !reduceMotion && compactSceneReady && inView && supportsWebGL && pageVisible;
 
   return (
     <div className={`compression-visual${showLiveScene ? " compression-visual--live" : ""}`} ref={containerRef} aria-hidden="true">
       <ScenePoster />
-      {showLiveScene ? <CompressionScene progress={progress} pointer={pointer} /> : null}
+      {showLiveScene ? <CompressionScene progress={progress} pointer={pointer} compact={compactScene} /> : null}
     </div>
   );
 }

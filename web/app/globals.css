@@ -102,7 +102,7 @@ img, svg { display: block; }
 .hero__wash { z-index: 2; pointer-events: none; }
 .compression-visual, .scene-poster, .compression-canvas { position: absolute; inset: 0; }
 .scene-poster { overflow: hidden; transition: opacity 700ms ease, filter 900ms ease, transform 1200ms var(--ease-out); }
-.compression-visual--live .scene-poster { transform: scale(1.025); filter: blur(11px) saturate(.72); opacity: .24; }
+.compression-visual--live .scene-poster { transform: none; filter: none; opacity: 0; }
 .compression-canvas { z-index: 1; animation: scene-reveal 900ms var(--ease-out) both; }
 .compression-canvas canvas { width: 100% !important; height: 100% !important; }
 @keyframes scene-reveal { from { opacity: 0; } to { opacity: 1; } }
