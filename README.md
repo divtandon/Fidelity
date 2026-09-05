@@ -58,8 +58,8 @@ model-safety certification.
 
 ## Product routes
 
-- `/` - scroll-scrubbed FP32-to-INT8 story with an interactive WebGL particle
-  system and a local static poster fallback.
+- `/` - continuously cycling FP32-to-INT8 story with an interactive WebGL
+  particle system and a local static poster fallback.
 - `/product` - workflow, report anatomy, and validation scope.
 - `/methods` - paired evaluation, confidence drift, statistical interpretation,
   and policy thresholds.

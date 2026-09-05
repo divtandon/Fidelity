@@ -10,7 +10,11 @@ it.
 These results were collected on September 5, 2026 from a local optimized Next.js
 production build on Windows, using Lighthouse 13.4.1 and headless Chromium.
 They are synthetic lab measurements, not field data, and should not be read as
-a guarantee for every device or network.
+a guarantee for every device or network. They also predate the later visual
+revision that increased particle density and changed compact-scene startup, so
+the tables are retained as historical tuning evidence rather than current
+performance claims. Re-run the procedure below before quoting fresh numbers for
+the present scene.
 
 The home-page final values are medians from three runs. The pre-change mobile
 column is a single baseline taken before compact-scene deferral, so it is useful
@@ -59,13 +63,14 @@ Desktop samples were sensitive to shared-machine load: the count over 25 ms
 ranged from 3 to 63 across the latest three runs. That variance is retained
 here because a single smooth capture would overstate certainty.
 
-## Controls that bound the visual cost
+## Current controls that bound the visual cost
 
-- The Three.js bundle is deferred on compact viewports until the first scroll,
-  pointer, or keyboard interaction. The optimized poster is the initial visual.
-- The desktop particle field uses 6,800 deterministic particles. Compact mode
-  uses 1,600, one device pixel per CSS pixel, lower-poly aperture rings, simpler
-  materials, and no decorative voxel edge pass.
+- The Three.js bundle is dynamically loaded. On compact viewports, the optimized
+  poster is the initial visual and the live scene is requested after 350 ms or
+  sooner after the first scroll, pointer, or keyboard interaction.
+- The current desktop particle field uses 12,000 deterministic particles.
+  Compact mode uses 3,200, one device pixel per CSS pixel, lower-poly aperture
+  rings, simpler materials, and no decorative voxel edge pass.
 - Desktop device-pixel ratio is capped at 1.5. The canvas stops rendering when
   the hero leaves the viewport, the document is hidden, WebGL is unavailable,
   or reduced motion is requested.
