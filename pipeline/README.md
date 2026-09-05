@@ -41,6 +41,10 @@ The command writes a run directory under `artifacts/runs/<run-id>/` containing:
   sample fingerprint, calibration selection fingerprint, checkpoint SHA-256,
   PyTorch versions and quantization backend.
 
+After the run directory and metadata are complete, the same validated report
+is atomically published to `artifacts/latest-report.json`. That stable path is
+the optional API's default input; use `--latest-report-path` to change it.
+
 Nothing under `artifacts/`, `data/`, or `models/` is tracked by git. A command
 only prints values it observed during its own training or evaluation.
 
