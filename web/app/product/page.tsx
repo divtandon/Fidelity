@@ -3,7 +3,10 @@ import Link from "next/link";
 import { ArrowRight, Boxes, Braces, Database, FileCheck2, Gauge, ScanSearch } from "lucide-react";
 
 import { Reveal } from "@/components/motion/reveal";
+import { PipelineBoard } from "@/components/product/pipeline-board";
 import { FEATURED_RUN_HREF } from "@/lib/featured-run";
+
+import styles from "./product-hero.module.css";
 
 export const metadata: Metadata = {
   title: "Product",
@@ -48,14 +51,14 @@ const stages = [
 export default function ProductPage() {
   return (
     <main id="main-content" className="subpage-main">
-      <section className="subpage-hero product-hero">
+      <section className={`subpage-hero product-hero ${styles.hero}`}>
         <div className="product-hero__glow product-hero__glow--blue" aria-hidden="true" />
         <div className="product-hero__glow product-hero__glow--orange" aria-hidden="true" />
-        <div className="page-shell subpage-hero__grid">
-          <Reveal className="subpage-hero__copy">
+        <div className={`page-shell subpage-hero__grid ${styles.heroGrid}`}>
+          <Reveal className={`subpage-hero__copy ${styles.heroCopy}`}>
             <p className="eyebrow"><Gauge size={14} /> Product · one reproducible run</p>
             <h1>From checkpoint<br />to <em>evidence.</em></h1>
-            <p>
+            <p className={styles.summary}>
               Fidelity quantizes a reference model, evaluates both versions on the same data, and turns
               the result into an inspectable validation report.
             </p>
@@ -65,17 +68,7 @@ export default function ProductPage() {
             </div>
           </Reveal>
 
-          <div className="product-instrument" aria-hidden="true">
-            <div className="product-instrument__source"><span>FP32</span><i /><i /><i /></div>
-            <div className="product-instrument__beam"><i /><i /><i /><i /><i /></div>
-            <div className="product-instrument__aperture"><i /><i /><i /></div>
-            <div className="product-instrument__target">
-              {Array.from({ length: 16 }, (_, index) => <i key={index} />)}
-            </div>
-            <span className="product-instrument__label product-instrument__label--a">reference weights</span>
-            <span className="product-instrument__label product-instrument__label--b">calibration</span>
-            <span className="product-instrument__label product-instrument__label--c">quantized artifact</span>
-          </div>
+          <div className={styles.boardWrap}><PipelineBoard /></div>
         </div>
       </section>
 

@@ -1,0 +1,44 @@
+.hero {
+  min-height: 780px;
+  padding-top: 10.5rem;
+  padding-bottom: 5.5rem;
+}
+
+.hero .heroGrid {
+  grid-template-columns: minmax(23rem, 0.72fr) minmax(38rem, 1.28fr);
+  gap: clamp(2rem, 4vw, 4.5rem);
+  min-height: 540px;
+}
+
+.heroCopy h1 { font-size: clamp(4rem, 6.3vw, 7rem); }
+
+.summary {
+  max-width: 35rem !important;
+  font-size: 1rem !important;
+  line-height: 1.72 !important;
+}
+
+.boardWrap {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .hero .heroGrid { grid-template-columns: minmax(21rem, 0.78fr) minmax(31rem, 1.22fr); }
+  .heroCopy h1 { font-size: clamp(3.8rem, 6vw, 6rem); }
+}
+
+@media (max-width: 900px) {
+  .hero { padding-top: 9rem; padding-bottom: 5rem; }
+  .hero .heroGrid { grid-template-columns: 1fr; gap: 3.5rem; }
+  .heroCopy { max-width: 44rem; }
+  .boardWrap { width: 100%; }
+}
+
+@media (max-width: 560px) {
+  .hero { padding-top: 8rem; }
+  .hero .heroGrid { gap: 2.75rem; }
+  .heroCopy h1 { font-size: clamp(3.45rem, 16vw, 4.8rem); }
+  .summary { font-size: 0.94rem !important; }
+}
