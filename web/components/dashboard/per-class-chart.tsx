@@ -88,11 +88,11 @@ export function PerClassChart({ rows }: { rows: ClassAccuracy[] }) {
         </>
       )}
 
-      <dialog className="class-dialog" ref={dialogRef} onClose={() => setSelected(null)}>
+      <dialog className="class-dialog" ref={dialogRef} aria-labelledby="class-details-title" onClose={() => setSelected(null)}>
         {selected ? (
           <div>
             <div className="class-dialog__top"><span>Class {String(selected.class_id).padStart(2, "0")}</span><button type="button" onClick={closeDialog} aria-label="Close class details"><X size={18} /></button></div>
-            <h3>{titleCase(selected.class_name)}</h3>
+            <h3 id="class-details-title">{titleCase(selected.class_name)}</h3>
             <p>The candidate was {speakDelta(selected.delta_pp)} on the same {selected.sample_count.toLocaleString()} labeled examples.</p>
             <dl>
               <div><dt>FP32</dt><dd>{formatPercent(selected.reference_accuracy)}</dd><small>{selected.reference_correct} correct</small></div>

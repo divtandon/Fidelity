@@ -66,7 +66,7 @@ export default function DocsPage() {
 
       <section className="docs-content">
         <div className="page-shell docs-layout">
-          <aside className="docs-sidebar">
+          <div className="docs-sidebar">
             <p>Documentation</p>
             <nav aria-label="Documentation sections">
               <a href="#start">Start</a><a href="#architecture">Architecture</a>
@@ -74,7 +74,7 @@ export default function DocsPage() {
               <a href="#reproducibility">Reproducibility</a><a href="#limitations">Limitations</a>
             </nav>
             <a className="docs-sidebar__source" href="https://github.com/divtandon/Fidelity" target="_blank" rel="noreferrer">View source <ArrowRight size={13} /></a>
-          </aside>
+          </div>
 
           <div className="docs-articles">
             <section className="docs-section" id="start">

@@ -45,7 +45,7 @@ export function SiteHeader() {
           </button>
         </div>
       </div>
-      <nav className={`mobile-nav${menuOpen ? " mobile-nav--open" : ""}`} id="mobile-menu" aria-label="Mobile navigation" aria-hidden={!menuOpen}>
+      <nav className={`mobile-nav${menuOpen ? " mobile-nav--open" : ""}`} id="mobile-menu" aria-label="Mobile navigation">
         {navigation.map((item) => <Link href={item.href} key={item.href} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
         <Link href="/runs/demo" onClick={() => setMenuOpen(false)}>Open demo</Link>
         <a href="https://github.com/divtandon/Fidelity" target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>GitHub <ArrowUpRight size={14} /></a>
