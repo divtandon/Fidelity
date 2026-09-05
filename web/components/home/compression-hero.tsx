@@ -14,7 +14,13 @@ const metrics = [
   { label: "p-value", value: "0.184", tone: "neutral" },
 ];
 
-const stages = ["Reference model", "Preparing compression", "Quantizing to INT8", "Comparing predictions"];
+const stages = [
+  "Reference model",
+  "Preparing compression",
+  "Quantizing to INT8",
+  "Comparing predictions",
+  "Validation complete",
+];
 
 export function CompressionHero() {
   const heroRef = useRef<HTMLElement>(null);
