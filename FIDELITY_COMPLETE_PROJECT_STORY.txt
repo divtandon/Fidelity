@@ -1,0 +1,2100 @@
+================================================================================
+FIDELITY
+COMPLETE PROJECT STORY, TECHNICAL CASE STUDY, AND REPRODUCTION GUIDE
+================================================================================
+
+Document purpose
+----------------
+This file explains exactly what was built, why it was built, how every major
+part works, what problems appeared during development, how those problems were
+solved, what the real measured result was, and what Fidelity does and does not
+claim. It is written for project demonstrations, portfolio reviews, technical
+interviews, and future development.
+
+Project repository: https://github.com/divtandon/Fidelity
+License: MIT
+Featured verified run: cifar10-resnet18-int8-seed2026
+Verification date for this document: September 5, 2026
+
+
+================================================================================
+1. THE SIMPLEST POSSIBLE EXPLANATION
+================================================================================
+
+Imagine shrinking a large photograph so it takes less space and is easier to
+send. The smaller photograph may look almost identical, but important details
+can be lost. Machine-learning models have a similar problem when they are
+compressed.
+
+Fidelity compares a model before and after compression. It gives the same test
+images to both versions, records what each model predicts, measures how the
+supported aggregate behavior changed, and creates an evidence report that a
+person can inspect.
+
+One-sentence description:
+
+    Fidelity evaluates whether an FP32 image classifier remains within
+    configured validation guardrails after it is converted to INT8.
+
+Thirty-second interview description:
+
+    I built Fidelity, an end-to-end model-validation system for neural-network
+    quantization. It trains or resumes an FP32 ResNet-18, converts it to a real
+    static INT8 model, evaluates both versions on the exact same 10,000 CIFAR-10
+    images, and compares accuracy, class behavior, prediction-distribution
+    drift, and paired statistical evidence. A Python backend produces a strict,
+    auditable ready/review/blocked report, and an interactive Next.js website
+    explains the result without inventing any metrics.
+
+The key principle is:
+
+    Do not assume that a transformed model is still good. Measure what changed.
+
+
+================================================================================
+2. THE REAL-WORLD PROBLEM
+================================================================================
+
+Modern neural networks are often trained with 32-bit floating-point values,
+called FP32. FP32 models can be accurate, but they can also require substantial
+memory and computation. Deployment teams therefore transform models into
+lower-bit numerical representations such as INT8.
+
+INT8 post-training quantization represents many model operations with 8-bit
+integers. This may help a model fit a deployment target, but the transformation
+can change outputs. The effect is not guaranteed to be the same for every
+model, dataset, class, or hardware stack.
+
+A weak validation process asks only:
+
+    "Is the total accuracy still close?"
+
+That is not enough. Two models can have almost identical overall accuracy while
+making different mistakes. A model can improve on one class and regress on
+another. It can preserve its final labels while changing how confident it is.
+It can also produce a dashboard number whose origin cannot be reproduced.
+
+Fidelity turns this into a release-evidence problem:
+
+  1. Did overall accuracy change?
+  2. Which individual classes changed?
+  3. Did the probability distributions move?
+  4. How many paired examples changed correctness, and were candidate-only
+     gains balanced against reference-only losses?
+  5. Is the paired evidence statistically detectable under the selected test?
+  6. Did any configured review or block guardrail fire?
+  7. Can another engineer inspect the configuration, hashes, and report later?
+
+This is useful to ML engineers, inference engineers, release reviewers, and
+teams moving models toward CPU or edge deployment. Fidelity is a validation
+instrument between "we compressed it" and "we are willing to evaluate whether
+to ship it."
+
+
+================================================================================
+3. WHAT WAS BUILT
+================================================================================
+
+Fidelity is not only a landing page and not only a Python notebook. It is a
+complete local system with five cooperating layers:
+
+  A. An executable ML pipeline
+     Loads CIFAR-10, trains or resumes a model, quantizes it, exports it,
+     reloads it, evaluates it, and records reproducibility metadata.
+
+  B. A dependency-light validation engine
+     Computes aggregate accuracy, per-class accuracy, confidence drift, paired
+     statistical evidence, and a backend-owned release-policy verdict.
+
+  C. A strict evidence contract
+     Serializes a versioned JSON report and rejects malformed, oversized,
+     internally inconsistent, or provenance-invalid evidence.
+
+  D. An optional read-only API
+     Uses FastAPI to serve only a valid computed report. It does not run the
+     statistical logic inside the browser and does not accept model uploads.
+
+  E. A desktop-first interactive product website
+     Uses Next.js, React, TypeScript, WebGL, charts, plain-language guidance,
+     keyboard interaction, accessible alternatives, and JSON export.
+
+The website includes both a clearly labeled illustrative demo and one bundled
+real computed report. It never silently substitutes demo values when real
+computed evidence is unavailable.
+
+
+================================================================================
+4. COMPLETE SYSTEM ARCHITECTURE
+================================================================================
+
+                           TRAINING PATH
+                           -------------
+
+      CIFAR-10 training split (50,000 images)
+                         |
+                         +----> augmented training loader
+                         |             |
+                         |             v
+                         |     FP32 CIFAR ResNet-18
+                         |             |
+                         |             v
+                         |       atomic checkpoint
+                         |
+                         +----> seed-selected calibration subset
+                                       |
+                                       v
+                            FX observers collect ranges
+                                       |
+                                       v
+                              static INT8 conversion
+                                       |
+                                       v
+                           TorchScript export + reload
+
+
+                           EVALUATION PATH
+                           ---------------
+
+      Held-out CIFAR-10 test split (10,000 ordered images)
+                         |
+                +--------+--------+
+                |                 |
+                v                 v
+          FP32 evaluation    reloaded INT8 evaluation
+               CPU                 CPU
+                |                 |
+                +--------+--------+
+                         |
+             verify identical target order
+                         |
+                         v
+           labels + predictions + probabilities
+                         |
+                         v
+              Python validation engine
+                         |
+        +----------------+----------------+
+        |                |                |
+        v                v                v
+     metrics       exact paired test   policy verdict
+        |                |                |
+        +----------------+----------------+
+                         |
+                         v
+            strict versioned JSON report
+                         |
+               validate and write atomically
+                         |
+              +----------+-----------+
+              |                      |
+              v                      v
+      manual validation +      automatic latest publish
+          repository                    |
+           check-in                     v
+              |              artifacts/latest-report.json
+              v                          |
+      bundled verified run               v
+                              optional FastAPI/Uvicorn
+                                      |
+                                      v
+                          server-only Next.js fetch
+                                      |
+                 +--------------------+--------------------+
+                 |                                         |
+                 v                                         v
+             strict Zod parse                    explicit unavailable state
+                 |
+                 v
+       interactive, accessible report
+
+
+Trust direction:
+
+    Python computes evidence and the verdict.
+              |
+              v
+    JSON carries the versioned evidence.
+              |
+              v
+    TypeScript validates and presents it.
+
+The browser does not derive a production verdict from colors, chart positions,
+or frontend thresholds.
+
+
+================================================================================
+5. WHAT EACH REPOSITORY AREA OWNS
+================================================================================
+
+.github/
+    GitHub Actions continuous integration and Dependabot configuration.
+
+api/
+    Optional FastAPI adapter. It reads an already-produced report, validates
+    it, checks the computed-provenance marker, and serves it through GET
+    endpoints.
+
+pipeline/
+    The end-to-end executable workflow: configuration, command-line interface,
+    CIFAR-10 loaders, training, checkpoint resume, seeding, quantization
+    orchestration, evaluation, hashing, metadata, and atomic publication.
+
+quantize/
+    Reusable PyTorch functions for FX post-training quantization and classifier
+    evaluation. These functions require real calibration and evaluation data.
+
+validation/
+    Pure-Python evidence logic: per-class accuracy, KL confidence drift,
+    paired signed-rank/random-sign testing, policy evaluation, report building,
+    JSON schema, strict serialization, and strict loading.
+
+tests/python/
+    Unit, boundary, serializer, policy, API, pipeline-orchestration, checkpoint,
+    real quantization, TorchScript export, and reload tests.
+
+web/
+    Next.js product website, WebGL compression scene, report dashboard,
+    plain-language guide, runtime Zod contract, unit tests, Playwright browser
+    tests, and frontend documentation.
+
+docs/
+    Screenshots and measured performance methodology.
+
+web/lib/verified-runs/cifar10-resnet18-int8-seed2026/
+    Checked real report, metadata, integrity hashes, and exact reproduction
+    record for the portfolio run.
+
+
+================================================================================
+6. BUILD STORY: FROM AN IDEA TO THE FINISHED SYSTEM
+================================================================================
+
+Phase 1 - Define a narrow, answerable question
+------------------------------------------------
+The project was deliberately scoped to one concrete transformation:
+
+    FP32 ResNet-18 on CIFAR-10 -> static INT8 candidate
+
+This made it possible to run the complete experiment rather than showing a
+generic dashboard around an imaginary model.
+
+Phase 2 - Establish the product and visual language
+----------------------------------------------------
+A Next.js application was scaffolded with pinned visualization and testing
+dependencies. The interface adopted luminous porcelain surfaces, deep ink
+typography, FP32 blue, INT8 orange, editorial serif headings, rounded precision
+panels, and a floating horizontal navigation bar.
+
+Phase 3 - Build real validation mathematics
+------------------------------------------------
+The Python validation layer was implemented separately from the interface.
+Per-class accuracy, per-image KL divergence, paired statistical evidence,
+policy thresholds, report types, serialization, and contract checks were given
+unit and boundary tests.
+
+Phase 4 - Build real model conversion
+--------------------------------------
+PyTorch FX post-training quantization was added. The adapter prepares graph
+observers, runs actual calibration batches, converts the graph to INT8, and
+returns a genuinely executable quantized model.
+
+Phase 5 - Build the reproducible training-to-report pipeline
+-------------------------------------------------------------
+The CIFAR-specific ResNet-18, loaders, augmentation, optimizer, deterministic
+seeding, resume behavior, artifact layout, hashes, and command-line interface
+were connected into one run. Both models were evaluated on the same ordered
+held-out data.
+
+Phase 6 - Build evidence delivery boundaries
+----------------------------------------------
+The report serializer was hardened so it could not accept plausible-looking
+but internally inconsistent numbers. An optional FastAPI adapter and a strict
+frontend Zod parser created two independent validation boundaries.
+
+Phase 7 - Build the report experience
+--------------------------------------
+The website added a result-first dashboard, per-class comparison, prediction
+drift explanation, statistical evidence, policy reasons, evidence drawer,
+downloadable JSON, demo/computed provenance markers, and honest unavailable and
+not-found states.
+
+Phase 8 - Produce and publish a real run
+----------------------------------------
+The ResNet-18 was trained for 20 epochs with seed 2026. The final checkpoint was
+then loaded through the hardened pipeline, quantized using 2,048 calibration
+images, exported to TorchScript, reloaded, and evaluated on all 10,000 test
+images. The exact report and metadata were committed as the verified run.
+
+Phase 9 - Refine the cinematic explanation
+-------------------------------------------
+The initial scene was iterated after visual review. It became wider, brighter,
+larger, less crowded, and continuously animated instead of requiring scroll.
+The brand mark became the supplied blue/orange orbital cube. Desktop spacing,
+card designs, navigation size, typography, and content density were revised.
+
+Phase 10 - Make the educational experience understandable
+----------------------------------------------------------
+The Product pipeline board was redesigned. A dedicated How It Works page was
+added to explain the data, model, calibration, pairing, result layers, policy,
+and limitations in ordinary language. The Methods and Docs sections provide
+the deeper technical path.
+
+Phase 11 - Make the evidence genuinely interactive
+---------------------------------------------------
+Charts were upgraded from static decoration to inspectable instruments.
+Pointer hover, focus, click/pinning, arrow-key navigation, live exact-value
+readouts, detail dialogs, and table alternatives were added and tested.
+
+Phase 12 - Audit and harden the complete system
+------------------------------------------------
+The project was repeatedly checked with Python tests, strict typing, linting,
+real CPU quantization tests, production builds, three browser engines,
+accessibility scans, responsive non-overlap tests, reduced-motion tests,
+performance measurements, Git history, and CI.
+
+
+================================================================================
+7. DATASET AND DATA HANDLING
+================================================================================
+
+Dataset
+-------
+Name: CIFAR-10
+Task: Ten-class image classification
+Image shape: 32 x 32 RGB
+Training split: 50,000 images
+Held-out test split: 10,000 images
+Test balance: 1,000 examples for each of ten classes
+
+Classes
+-------
+  0  airplane
+  1  automobile
+  2  bird
+  3  cat
+  4  deer
+  5  dog
+  6  frog
+  7  horse
+  8  ship
+  9  truck
+
+Training transform
+------------------
+  - RandomCrop(32, padding=4)
+  - RandomHorizontalFlip()
+  - Convert image to tensor
+  - Normalize by CIFAR-10 channel statistics
+
+Normalization mean:     (0.4914, 0.4822, 0.4465)
+Normalization standard deviation: (0.2470, 0.2435, 0.2616)
+
+Evaluation and calibration transform
+------------------------------------
+  - Convert image to tensor
+  - Apply the same normalization
+  - No random crop or flip
+
+Calibration is selected from the training split, not from the held-out test
+split. A seeded torch.randperm chooses the calibration indices. The selected
+index and label order is hashed so the exact calibration selection can be
+audited.
+
+The test loader uses shuffle=False. Both models receive the same loader object
+in the production pipeline, and their returned target tuples and sample counts
+must match. If they do not match, the report is not generated.
+
+
+================================================================================
+8. MODEL AND TRAINING IMPLEMENTATION
+================================================================================
+
+Base architecture
+-----------------
+The model is torchvision ResNet-18 with weights=None, so this portfolio model
+was trained from scratch rather than downloading pretrained ImageNet weights.
+
+ResNet means Residual Network. Its residual connections let blocks learn a
+change relative to their input and help gradients travel through a deeper
+convolutional network.
+
+CIFAR-10 adaptation
+-------------------
+ImageNet ResNet-18 normally begins with a large 7 x 7 stride-2 convolution and
+a max-pooling layer. Those operations discard too much detail from a 32 x 32
+image. Fidelity changes the first convolution to:
+
+  - 3 x 3 kernel
+  - stride 1
+  - padding 1
+  - no bias
+
+The max-pool is replaced with Identity, and the classifier has ten outputs.
+
+Training algorithm
+------------------
+Loss: CrossEntropyLoss
+Optimizer: stochastic gradient descent (SGD)
+Initial learning rate: 0.1
+Minimum learning rate: 0.00001
+Momentum: 0.9
+Weight decay: 0.0005
+Schedule: deterministic epoch-indexed cosine decay
+Verified total epochs: 20
+Seed: 2026
+Verified training device: CUDA
+
+The final observed mean cross-entropy for epoch 20 was:
+
+    0.07139704094171524 across 50,000 training examples
+
+Resume design
+-------------
+Each checkpoint contains the architecture identifier, completed epoch, seed,
+model state, optimizer state, and training configuration. Resume rejects a
+changed architecture, dataset, seed, total-epoch target, optimizer/schedule
+settings, batch size, worker count, or training device when that change would
+invalidate the claimed training lineage.
+
+Each epoch gets a deterministic derived seed. Worker RNGs, Python, NumPy,
+PyTorch CPU, and CUDA are seeded. cuDNN benchmark mode is disabled and
+deterministic mode is enabled. PyTorch deterministic algorithms are requested
+with warn_only=True because some device kernels do not offer deterministic
+implementations.
+
+This improves repeatability, but it does not promise bit-for-bit identity across
+different operating systems, hardware, drivers, or PyTorch builds.
+
+
+================================================================================
+9. QUANTIZATION: HOW FP32 BECOMES INT8
+================================================================================
+
+Quantization type
+-----------------
+Static post-training INT8 quantization using PyTorch FX graph mode.
+
+Verified implementation:
+
+    torch.ao.quantization.quantize_fx
+    prepare_fx -> calibration -> convert_fx
+
+Verified quantized CPU backend: oneDNN
+Verified calibration set: 2,048 training images
+Verified observed calibration batches: 4
+
+Step by step
+------------
+  1. Make a CPU evaluation copy of the FP32 model.
+  2. Select a supported quantized CPU engine.
+  3. Build a qconfig mapping for that engine.
+  4. Use prepare_fx to insert observers into the traced graph.
+  5. Run real representative calibration inputs through the prepared graph.
+  6. Let observers record useful numerical ranges.
+  7. Use convert_fx to replace eligible operations with quantized operations.
+  8. Export the candidate as a standalone TorchScript artifact.
+  9. Reload the exported artifact from disk.
+ 10. Evaluate the reloaded artifact, not merely the in-memory converted object.
+
+Reloading is essential. A model can work before serialization but fail when the
+artifact intended to move toward deployment is loaded. Fidelity validates the
+serialized candidate actually evaluated instead of stopping at successful
+conversion.
+
+Both the FP32 reference and INT8 candidate are evaluated on CPU. That keeps the
+comparison focused on quantization rather than mixing CPU and GPU numerical
+differences into the observed result.
+
+
+================================================================================
+10. EVALUATION OUTPUTS
+================================================================================
+
+For each test batch, Fidelity performs the following operations:
+
+  1. Run model inference and obtain logits shaped [batch, classes].
+  2. Reject outputs with the wrong rank, fewer than two classes, or non-finite
+     values.
+  3. Apply softmax to create a probability distribution for each image.
+  4. Use argmax to select the top-1 predicted class.
+  5. Store the ordered ground-truth labels, predictions, and probability rows.
+  6. Compute exact correct counts.
+
+The output container validates that:
+
+  - labels, predictions, and probability rows have equal non-zero length;
+  - labels and predictions are valid non-negative class IDs;
+  - all probability values are finite and non-negative;
+  - every probability row has the same class width;
+  - probability sums are valid within tolerance;
+  - stored correct_count matches a fresh count from labels and predictions.
+
+The report builder also checks that the supplied prediction agrees with the
+probability argmax. Exact ties are resolved deterministically to the smallest
+class ID.
+
+
+================================================================================
+11. VALIDATION ALGORITHMS AND STATISTICS
+================================================================================
+
+11.1 Overall top-1 accuracy
+---------------------------
+
+    accuracy = correct predictions / evaluated examples
+
+The report stores both the integer correct count and the decimal accuracy. The
+strict loader recalculates one from the other.
+
+
+11.2 Accuracy change in percentage points
+------------------------------------------
+
+    delta_pp = (candidate_accuracy - reference_accuracy) * 100
+
+Percentage points are used instead of relative percent change. For example,
+92.39% to 92.38% is -0.01 percentage points.
+
+
+11.3 Per-class accuracy
+-----------------------
+For every ground-truth class, one pass counts:
+
+  - number of class examples;
+  - FP32 correct predictions;
+  - INT8 correct predictions;
+  - reference accuracy;
+  - candidate accuracy;
+  - candidate-minus-reference percentage-point change.
+
+This detects behavior hidden by a nearly unchanged aggregate total.
+
+
+11.4 Mean per-image KL prediction-distribution drift
+-----------------------------------------------------
+For image i, Fidelity first normalizes the FP32 probability vector P_i and INT8
+probability vector Q_i. With C classes and epsilon e, it then defines:
+
+    P_tilde_i(c) = (P_i(c) + e) / (1 + C * e)
+    Q_tilde_i(c) = (Q_i(c) + e) / (1 + C * e)
+
+and computes:
+
+    KL_i(P || Q) = sum over classes c of
+                   P_tilde_i(c) * ln(P_tilde_i(c) / Q_tilde_i(c))
+
+The default recorded epsilon is 1e-12. Smoothing prevents zero probabilities
+from creating infinite logarithms. Natural logarithms mean the unit is nats.
+
+The final value is:
+
+    mean_KL = average of KL_i across all evaluated images
+
+This is important: Fidelity calculates KL for each image and then averages. It
+does not pool the entire dataset into one aggregate class distribution, which
+would answer a different question and could hide per-image movement.
+
+The metric is called prediction-distribution or confidence drift. It is not
+claimed to be a complete calibration study. Expected Calibration Error and
+reliability curves are outside the current scope.
+
+
+11.5 Paired correctness evidence
+--------------------------------
+Each image produces a pair:
+
+    reference_correct_i in {0, 1}
+    candidate_correct_i in {0, 1}
+
+The difference candidate minus reference is therefore -1, 0, or +1.
+
+  - 0 means both models were either correct or incorrect.
+  - +1 means only the candidate was correct.
+  - -1 means only the reference was correct.
+
+The current JSON contract calls this a Wilcoxon signed-rank test. Zero
+differences are excluded and tied absolute ranks receive average ranks. For
+binary correctness, every non-zero absolute difference equals one, so all
+non-zero ranks are tied. Fidelity detects that case and uses the exact
+random-sign/binomial distribution rather than trying to enumerate an enormous
+general permutation space.
+
+For this paired binary case, the resulting p-value is numerically the same as
+the exact binomial form of McNemar's paired-classifier test. The current math is
+correct, but a future schema version should consider naming it exact McNemar and
+storing both discordant cells explicitly because that terminology is more
+conventional for paired correct/incorrect outcomes.
+
+The reusable generic helper also supports non-binary paired values:
+
+  - average ranks for ties;
+  - Wilcox zero exclusion;
+  - exact dynamic-programming permutation calculation for small untied inputs;
+  - tie-aware normal approximation with continuity correction for larger
+    untied inputs;
+  - validation of finite numbers, equal pair counts, and alternatives.
+
+
+11.6 Versioned policy algorithm
+-------------------------------
+The Python backend, not the frontend, maps evidence to one of three statuses:
+
+    ready    No configured guardrail fired.
+    review   A caution condition needs human inspection.
+    blocked  A block condition fired; do not proceed unchanged.
+
+Default fidelity_default policy version 1.0.0:
+
+  Evidence                         Review threshold    Block threshold
+  ------------------------------- ------------------- ----------------
+  Overall accuracy drop           0.50 pp             2.00 pp
+  Mean KL drift                   0.020 nats          0.100 nats
+  Worst eligible class drop       2.00 pp            10.00 pp
+
+A statistically detectable negative paired result also triggers review when
+p < alpha, with alpha = 0.05. Block takes precedence over review, but every
+triggered reason remains in the serialized report.
+
+The policy name, version, alpha, and thresholds travel with every report. This
+allows an old decision to be audited even if future default thresholds change.
+
+
+11.7 Integrity and persistence algorithms
+------------------------------------------
+  - The run metadata stores SHA-256 fingerprints for the dataset archive,
+    sample order, calibration order, ordered outputs, checkpoint, INT8 artifact,
+    and report. The checked reproduction record separately records a hash of
+    the metadata file itself.
+  - JSON uses deterministic formatting and disallows NaN and Infinity.
+  - Checkpoint, TorchScript, report, metadata, and latest-report publication use
+    a temporary sibling file, flush, fsync, and atomic os.replace.
+  - The latest report is published only after the run record is complete.
+  - Failed runs may retain diagnostic artifacts, but cannot become latest
+    evidence.
+
+
+================================================================================
+12. THE REAL VERIFIED PORTFOLIO RESULT
+================================================================================
+
+Run ID: cifar10-resnet18-int8-seed2026
+Model: ResNet-18 adapted for CIFAR-10
+Reference: FP32
+Candidate: static INT8
+Test examples: 10,000 ordered held-out images
+Calibration: 2,048 seed-selected training images
+
+Overall result
+--------------
+
+  FP32 top-1 accuracy:       92.39% = 9,239 / 10,000
+  INT8 top-1 accuracy:       92.38% = 9,238 / 10,000
+  Accuracy change:           -0.01 percentage points
+  Net correct-count change:  one fewer correct answer
+  Mean per-image KL drift:   0.0004199851152058104 nats
+  Paired non-zero changes:   39 images
+  Exact two-sided p-value:   1.0
+  Significance conclusion:   no statistically detectable difference
+  Policy verdict:            ready
+  Triggered policy reasons:  none
+
+The 39 discordant pairs and the net loss of one reconstruct to:
+
+  Candidate-only correct: 19
+  Reference-only correct: 20
+
+The p-value of 1.0 does not mean the predictions were identical. Thirty-nine
+images changed correctness state. It means the observed gains and losses were
+almost perfectly balanced under this paired test. It is also not proof that the
+models are statistically equivalent; equivalence requires a chosen margin and
+a study designed for that claim.
+
+Every per-class result
+----------------------
+
+  Class        FP32 correct  INT8 correct  FP32 acc  INT8 acc  Delta
+  ------------ ------------  ------------  --------  --------  -------
+  Airplane          933           933        93.3%     93.3%     0.0 pp
+  Automobile        968           969        96.8%     96.9%    +0.1 pp
+  Bird              901           900        90.1%     90.0%    -0.1 pp
+  Cat               820           829        82.0%     82.9%    +0.9 pp
+  Deer              936           936        93.6%     93.6%     0.0 pp
+  Dog               887           884        88.7%     88.4%    -0.3 pp
+  Frog              942           939        94.2%     93.9%    -0.3 pp
+  Horse             929           927        92.9%     92.7%    -0.2 pp
+  Ship              969           968        96.9%     96.8%    -0.1 pp
+  Truck             954           953        95.4%     95.3%    -0.1 pp
+
+The largest absolute class movement was Cat at +0.9 pp. This was an
+improvement, not the worst regression. The largest decreases were Dog and Frog
+at -0.3 pp each.
+
+Correct interpretation
+----------------------
+The candidate stayed inside every serialized demonstration threshold for this
+specific model, dataset, and run. That is why the backend status is ready.
+
+Incorrect interpretations
+--------------------------
+  - "INT8 is always safe."
+  - "The two models are proven equivalent."
+  - "The candidate is certified for production."
+  - "The project measured a four-times latency or size improvement."
+  - "A p-value of 1.0 means every prediction was identical."
+
+None of those statements is supported by this report.
+
+
+================================================================================
+13. VERIFIED ARTIFACT AND OBSERVATION HASHES
+================================================================================
+
+Source training checkpoint
+e8fd950547336af995aad6a727b8651caf7990bb62f90a71e06f8f4c4fc72d5e
+
+Self-contained evaluation checkpoint
+d17e9d718bb83201a83ce7fceaffa80787a38d6dd899d80bd6587e60095e6b04
+
+Reloaded INT8 TorchScript artifact
+a108dbcb9111ea27d362fcecb1ad27e2a86f2ab886d2974211bf3c49acc685ae
+
+Validation report
+ef3a5b590238fd43dfb57f33473ac7e55706dbf9964600062b11743b6fe7b5e9
+
+Run metadata
+a2e83a3588de058980da9c121858f3ec7db1639ceab2a1dbfe0fa41bc929bc11
+
+CIFAR-10 source archive
+6d958be074577803d12ecdefd02955f39262c83c16fe9348329d7fe0b5c001ce
+
+Held-out test order
+cc3d359d93e107e6de4d989225c82d2ae2686d635cec7f2d42ddaf7c52fd256e
+
+Calibration selection and order
+b95078a1cccb1cfad37b5ec388b874bda825372392b3bfa678695d0a284debaa
+
+FP32 ordered outputs
+2debdcf5245860c95fc86fff92e8ae727adad1b9fcdac0480c8cfa8530a33465
+
+INT8 ordered outputs
+99ffa3f325a66d33459c9469548dddadd3ad896784b27b234682d23fbefcc551
+
+Hashes do not prove that a model is good, authentic, or from a trusted author.
+They let reviewers compare and identify exact bytes, selections, orders, and
+outputs. Origin still depends on a trusted external record or signature and on
+protecting write access to the artifact directory.
+
+
+================================================================================
+14. WEBSITE AND USER EXPERIENCE
+================================================================================
+
+The website is desktop-first because the primary use case is inspecting dense
+technical evidence on a computer. Core content still works at compact widths.
+
+Shared visual system
+--------------------
+  - Luminous off-white and pale titanium backgrounds
+  - Deep navy/ink typography
+  - Ultramarine blue for FP32 reference evidence
+  - Vermilion orange for INT8 candidate evidence
+  - Champagne/gold for statistical caution
+  - Newsreader editorial serif headings
+  - Manrope interface and body typography
+  - IBM Plex Mono technical labels
+  - Floating rounded navigation
+  - Designed cards, hairline borders, soft shadows, and controlled gradients
+  - Supplied blue/orange orbital cube brand mark
+
+Routes
+------
+
+/
+    Continuously animated FP32-to-INT8 story. It shows the blue FP32 particle
+    field, metallic compression aperture, orange INT8 voxel candidate, live
+    stage labels, verified accuracy meters, and direct report/method actions.
+
+/product
+    A designed static validation pipeline board and detailed workflow. It
+    explains checkpoint, calibration, INT8 artifact, and evidence report stages
+    without adding distracting animation to every diagram.
+
+/how-it-works
+    A plain-English guide for a visitor who does not already understand ML
+    quantization. It explains the real data, models, why paired evaluation
+    matters, every pipeline step, how to read each result, the policy language,
+    and the boundaries of the claim.
+
+/methods
+    Technical explanation of post-training quantization, paired evaluation,
+    class behavior, distribution drift, statistical interpretation, and the
+    versioned policy. The class explorer uses the real verified class values.
+
+/docs
+    Setup, architecture, report contract, integrity checks, reproducibility,
+    limitations, and copyable commands.
+
+/runs/demo
+    Illustrative dashboard fixture. It is visibly and machine-readably labeled
+    as demo data and cannot be served by the computed-report API.
+
+/runs/cifar10-resnet18-int8-seed2026
+    Bundled real computed report. It works locally without starting the Python
+    API because the validated report is part of the repository.
+
+/runs/latest
+    Optional live delivery route. It requests the latest valid computed report
+    from FastAPI. If the service is missing, slow, invalid, or returns demo
+    evidence, the page shows an honest unavailable state.
+
+Unknown run IDs
+    Return a real scoped not-found state rather than plausible-looking data.
+
+Interactive evidence
+--------------------
+  - FP32 and INT8 accuracy controls disclose exact correct counts.
+  - Accuracy, delta, and candidate readings support hover, focus, and pinning.
+  - Recharts grouped class bars show exact tooltip values.
+  - Keyboard controls let a user inspect every class without a pointer.
+  - A class detail dialog provides exact counts and changes.
+  - A semantic data table is available as an alternative to the chart.
+  - The KL display is a distance-to-threshold gauge, not a misleading pie chart.
+  - Observed, review, and block KL positions have explanatory live readouts.
+  - The evidence drawer exposes paired-test fields and interpretation context;
+    the verdict and drift views expose policy context.
+  - The report can be exported as JSON.
+
+Accessibility
+-------------
+  - Essential text is semantic HTML, never only WebGL pixels.
+  - The canvas is decorative to assistive technology.
+  - Color is paired with labels and text.
+  - Visible focus and keyboard paths are provided.
+  - Charts expose live readings and table alternatives.
+  - Menus and dialogs use explicit accessible semantics.
+  - A keyboard skip link moves directly to each route's main content.
+  - Homepage accuracy values use semantic meters with exact aria-valuetext.
+  - prefers-reduced-motion is honored without hiding content.
+  - Automated axe checks run in browser tests.
+
+Automated axe and keyboard checks are strong regression protection, but they do
+not replace manual screen-reader, browser zoom, high-contrast, or other
+assistive-technology testing.
+
+
+================================================================================
+15. THE CONTINUOUS WEBGL COMPRESSION ANIMATION
+================================================================================
+
+The hero scene is procedural. It does not depend on a downloaded GLTF model or
+a paid visual asset service.
+
+FP32 particle field
+-------------------
+  - 12,000 deterministic particles on desktop
+  - 3,200 deterministic particles on compact viewports
+  - Seeded 32-bit pseudo-random source positions
+  - Large blue/lavender ellipsoidal field
+  - Custom GLSL vertex and fragment shaders
+  - Additive blending and controlled point glow
+  - Source-to-target positions stored in typed buffer attributes
+
+Compression aperture
+--------------------
+  - Concentric metallic/glass-like rings
+  - Independently phased, bounded ring oscillation, breathing, and light
+    response
+  - A visual boundary between dense FP32 and ordered INT8
+
+INT8 candidate
+--------------
+  - 5 x 5 x 5 = 125 instanced voxels
+  - Orange illuminated lattice
+  - Assembly motion tied to compression progress
+  - Instancing avoids creating 125 independent React component trees
+
+Motion algorithm
+----------------
+  - Continuous 14,000 ms cycle
+  - Progress moves smoothly between 0.18 and 0.82
+  - Cosine wave followed by smoothstep easing
+  - Five semantic stages:
+      1. Reference model
+      2. Preparing compression
+      3. Quantizing to INT8
+      4. Comparing predictions
+      5. Validation complete
+  - Exponential damping creates restrained pointer parallax
+  - Slow idle yaw, pitch, and vertical movement keep the scene alive
+
+Progressive enhancement and performance controls
+------------------------------------------------
+  - The Three.js scene is dynamically imported with server rendering disabled.
+  - A local optimized poster is visible during loading and remains the fallback.
+  - WebGL capability is checked before mounting the live scene.
+  - Compact WebGL is requested after 350 ms or sooner after first interaction.
+  - Desktop device-pixel ratio is capped at 1.5; compact mode uses 1.
+  - Compact rings/materials are simpler.
+  - Rendering stops when the hero is away from the viewport or the tab is
+    hidden, and is not mounted for reduced-motion or unsupported WebGL states.
+  - An error boundary falls back to the poster if scene creation fails.
+
+The recorded Lighthouse and frame-pacing tables in docs/PERFORMANCE.md are
+historical tuning measurements from an earlier lower-particle configuration.
+They remain useful methodology, but the current 12,000/3,200-particle scene
+must be reprofiled before quoting fresh performance scores.
+
+
+================================================================================
+16. REPORT CONTRACT, SECURITY, AND TRUST BOUNDARIES
+================================================================================
+
+Python report boundary
+----------------------
+The serializer does more than ask whether fields exist. It enforces:
+
+  - maximum report size of 5 MiB;
+  - strict UTF-8 and valid JSON;
+  - duplicate-key rejection;
+  - NaN and Infinity rejection;
+  - exact field sets and known schema versions;
+  - mutually valid demo/computed provenance;
+  - finite values and possible integer counts;
+  - reference/candidate correct-count arithmetic;
+  - overall delta arithmetic;
+  - per-class sample totals and correct-count arithmetic;
+  - feasible paired counts and recomputed exact p-value;
+  - significance interpretation consistency;
+  - confidence drift type, finiteness, non-negativity, direction, unit, epsilon,
+    and sample-count consistency;
+  - a freshly recomputed backend policy and verdict from the serialized
+    measurements.
+
+The report does not serialize all 10,000 probability rows, so a loader cannot
+recompute mean KL from report JSON alone. It can recompute count-derived
+accuracies, class arithmetic, paired p-value and interpretation, and the policy
+verdict. Authenticity still requires trusted artifact storage or an external
+signature/attestation.
+
+Frontend report boundary
+------------------------
+Zod performs a second strict parse. It rejects unknown and many internally
+inconsistent report objects before a chart is rendered. Python remains
+authoritative for exact p-value and policy calculation. The frontend consumes
+the backend verdict instead of recreating it from CSS colors or display
+thresholds.
+
+Demo/computed separation
+------------------------
+  - Demo reports carry demo provenance.
+  - Computed reports carry computed=true and kind=computed.
+  - These fields are semantic provenance markers, not cryptographic proof.
+  - The API refuses to serve demo-marked evidence as computed evidence.
+  - /runs/latest never falls back to demo numbers.
+  - Exported filenames and labels preserve provenance.
+
+Checkpoint handling
+-------------------
+  - The checkpoint is hashed and deserialized from the same open file handle.
+  - torch.load uses weights_only=True.
+  - Format, architecture, epoch, and state-container types are checked.
+  - load_state_dict is strict by default.
+  - A temporary mismatched state dictionary was manually verified to fail.
+  - A temporary full pickled module was manually verified to fail restricted
+    weights-only loading.
+
+TorchScript warning
+-------------------
+TorchScript model loading can execute serialized code. Fidelity therefore
+labels generated model files as trusted-artifact-only and provides no public
+model-upload endpoint. Model files from strangers must not be loaded.
+
+Path and service controls
+-------------------------
+  - Run IDs are regex-restricted and path-contained.
+  - Artifact path aliases are rejected.
+  - The repository ignores its data/, models/, and artifacts/ directories plus
+    .env and .env.* files except committed examples. Arbitrary model or secret
+    files placed elsewhere are not automatically protected.
+  - API methods are GET-only.
+  - Default CORS permits only localhost:3000 and 127.0.0.1:3000.
+  - Missing reports return 404.
+  - Invalid or unreadable reports return a generic 503 without leaking details.
+  - The Next.js server-only fetch is uncached and has a four-second timeout.
+
+
+================================================================================
+17. DEVELOPMENT STRUGGLES, CHALLENGES, AND SOLUTIONS
+================================================================================
+
+Challenge 1: A beautiful dashboard could accidentally present fake evidence
+----------------------------------------------------------------------------
+Early UI development needed fixture values before the real 20-epoch run was
+available. The risk was that polished numbers might be mistaken for computed
+results.
+
+Solution:
+Demo and computed provenance markers were made mutually distinct. Demo labels
+remain visible throughout the interface and export. The API accepts only the
+computed marker. The live route fails closed. A separate bundled verified run
+was added only after the real pipeline produced it.
+
+
+Challenge 2: The comparison had to be experimentally fair
+----------------------------------------------------------
+If FP32 and INT8 used two independently sampled image sets, the difference
+could come from the data selection instead of quantization.
+
+Solution:
+Calibration comes only from training data. Both models reuse the same ordered
+held-out test loader. Returned targets and sample counts are compared before
+report building. Both evaluations use CPU.
+
+
+Challenge 3: The deployable artifact might differ from the converted object
+---------------------------------------------------------------------------
+Successful in-memory conversion does not prove the serialized artifact can be
+loaded and executed.
+
+Solution:
+The pipeline saves a standalone TorchScript INT8 model, reloads it, and then
+evaluates that reloaded model. Dedicated runtime tests exercise conversion,
+quantized operators, export, load, and inference.
+
+
+Challenge 4: Interrupted training could quietly change reproducibility
+-----------------------------------------------------------------------
+DataLoader shuffle order, augmentation RNGs, and a restarted learning-rate
+schedule can make a resumed run different from an uninterrupted run.
+
+Solution:
+Fidelity uses epoch-indexed seeds, seeded workers, deterministic loader resets,
+stored optimizer/configuration, a deterministic cosine schedule, strict resume
+configuration checks, and source-checkpoint hashing.
+
+
+Challenge 5: A valid-looking JSON file could contain impossible arithmetic
+--------------------------------------------------------------------------
+A shape-only schema could accept edited totals, an invented p-value, or a
+frontend-friendly verdict that did not follow policy.
+
+Solution:
+The Python loader recalculates count-derived metric relationships, paired
+evidence, and the policy from serialized measurements. The frontend performs an
+additional strict Zod reconciliation. Invalid evidence is rejected rather than
+painted attractively. Mean KL cannot be independently recalculated without the
+unserialized probability rows, so trusted storage remains part of the boundary.
+
+
+Challenge 6: Paired binary correctness creates extreme statistical ties
+------------------------------------------------------------------------
+Per-image differences are only -1, 0, and +1. General signed-rank permutation
+enumeration would be wasteful, and a normal approximation would be unnecessary.
+
+Solution:
+The implementation detects the all-tied non-zero case and computes the exact
+random-sign/binomial tail efficiently. The generic helper retains exact and
+tie-aware approximate paths for other numerical inputs.
+
+
+Challenge 7: The hero animation was initially too small, dull, and crowded
+-------------------------------------------------------------------------
+Visual reviews showed that the first scene lacked brightness and scale, placed
+objects too close together, and did not resemble the intended cinematic UI.
+
+Solution:
+The field, aperture, and cube were enlarged and spread horizontally. Lighting,
+particle glow, material response, camera framing, desktop scale, and particle
+density were revised. The user-supplied orbital cube became the brand mark.
+
+
+Challenge 8: Motion originally depended too much on scrolling
+--------------------------------------------------------------
+The main transformation needed to remain the visual priority even when a user
+did not scroll.
+
+Solution:
+The scene moved to a continuous 14-second eased cycle that begins automatically.
+Scroll is now navigation, not the only animation trigger.
+
+
+Challenge 9: A static poster competed with the live animation
+------------------------------------------------------------
+The poster is useful while WebGL loads or cannot run, but it should not look
+like a second copy behind the active animation.
+
+Solution:
+The poster is treated as a loading/failure/reduced-motion fallback and is
+visually removed when the live scene reports ready. The animated procedural
+objects remain the priority.
+
+
+Challenge 10: Desktop pages had wide empty spaces and weak information density
+-----------------------------------------------------------------------------
+Initial Product, Methods, Docs, and report layouts were too sparse at ordinary
+100% desktop zoom. Some headings had uncomfortable line-height/italic glyph
+collisions, and small navigation text reduced readability.
+
+Solution:
+The layout became explicitly desktop-first. Content widths, grids, card
+surfaces, typography, line heights, navigation sizing, and vertical rhythm were
+reworked. The Product board became a designed four-stage artifact. Automated
+browser tests now measure targeted layout separation and document overflow at
+desktop, tablet-boundary, and compact widths.
+
+
+Challenge 11: Static charts did not behave like analytical tools
+---------------------------------------------------------------
+A screenshot of bars could not answer "what exactly is this value?" and did not
+help keyboard users.
+
+Solution:
+Hover, focus, click/pin, arrow-key selection, exact readouts, accessible names,
+detail dialogs, and table alternatives were added. The KL visual became an
+honest distance gauge rather than a decorative pie.
+
+
+Challenge 12: Reduced-motion preferences caused hydration risk
+--------------------------------------------------------------
+The server cannot know a browser's media preference. Rendering different server
+and initial client structures can cause React hydration drift.
+
+Solution:
+A useSyncExternalStore preference boundary supplies a stable server snapshot,
+then responds to preference changes. Reduced motion preserves every narrative
+and metric while avoiding the live canvas.
+
+
+Challenge 13: Rich WebGL had to remain usable on ordinary hardware
+-----------------------------------------------------------------
+Thousands of animated objects can overwhelm React, the GPU, or the main thread.
+
+Solution:
+Typed buffers, custom shaders, points, instanced meshes, capped DPR, compact
+geometry/material paths, dynamic imports, viewport and visibility gating,
+poster-first loading, and an error boundary constrain the visual cost.
+
+
+Challenge 14: Local success did not guarantee CI success
+--------------------------------------------------------
+The project encountered Windows/Linux command differences, npm lockfile version
+differences, a generated Next layout-type dependency, GitHub Action Node runtime
+deprecations, and browser-engine-specific behavior.
+
+Solution:
+Playwright chooses npm.cmd on Windows and npm on Linux. The lockfile was
+regenerated with the intended npm generation. Generated route-type coupling was
+removed. GitHub Actions were updated. Chromium, Firefox, and WebKit now run in
+CI.
+
+
+Challenge 15: Accessibility could not be delegated to the canvas
+----------------------------------------------------------------
+WebGL, color, chart hover, dialogs, and animated entrances all create barriers
+if they are the only way to understand a result.
+
+Solution:
+The canvas is decorative; all meaning remains in HTML. Color has text labels.
+Charts have keyboard and table paths. Menus and dialogs have explicit
+semantics. Reduced-motion and axe journeys are automated.
+
+
+Challenge 16: No paid software or hosted service could be required
+-----------------------------------------------------------------
+Paid APIs, hosted databases, stock 3D assets, or proprietary model services
+would make the portfolio harder to reproduce.
+
+Solution:
+The system uses open-source local dependencies, CIFAR-10, procedural WebGL art,
+a bundled verified report, an optional local API, and no required secrets.
+
+
+================================================================================
+18. PROGRAMMING SKILLS DEMONSTRATED
+================================================================================
+
+Machine learning engineering
+----------------------------
+  - Adapting a CNN architecture to a small-image dataset
+  - Training from scratch and checkpoint resume
+  - Data augmentation and normalization
+  - Evaluation-loop design
+  - Model calibration and static post-training quantization
+  - Quantized CPU inference
+  - Artifact export, reload, and validation
+  - Experiment pairing and contamination avoidance
+  - Reproducibility and model lineage
+
+Statistics and numerical computing
+----------------------------------
+  - Aggregate and stratified accuracy
+  - Percentage-point interpretation
+  - Per-image KL divergence
+  - Paired experimental design
+  - Signed ranks, ties, zero handling, exact permutation logic
+  - Exact binomial/McNemar-like discordance reasoning
+  - Statistical significance versus equivalence
+  - Threshold policy design and honest uncertainty language
+  - Floating-point validation and finite-number handling
+
+Python engineering
+------------------
+  - Typed dataclasses and immutable result objects
+  - Iterables, sequences, mappings, and strict validation
+  - Command-line interface design with argparse
+  - Optional dependency boundaries
+  - File hashing and canonical serialization
+  - Atomic filesystem persistence
+  - FastAPI/Pydantic response contracts
+  - Unit, integration, and runtime testing
+  - Ruff formatting/linting and strict mypy
+
+Frontend engineering
+--------------------
+  - Next.js App Router and server/client component boundaries
+  - React 19 component and state design
+  - Strict TypeScript
+  - Responsive desktop-first layout
+  - CSS architecture, CSS Modules, custom properties, grid, and flexbox
+  - Runtime JSON validation with Zod
+  - Server-only fetching, timeouts, no-store caching, and fail-closed states
+  - Accessible dialogs, navigation, live regions, meters, tables, and controls
+  - Interactive data visualization with Recharts and custom semantic controls
+  - Reduced-motion and hydration-safe browser preferences
+
+Graphics and motion engineering
+-------------------------------
+  - Three.js scene composition
+  - React Three Fiber lifecycle and frame loops
+  - WebGL feature detection and fallback strategy
+  - GLSL vertex and fragment shaders
+  - Typed buffer geometry and custom attributes
+  - Deterministic particle systems
+  - Instanced meshes
+  - Interpolation, smoothstep easing, cosine cycles, and exponential damping
+  - Camera, lighting, material, particle, and DPR tuning
+  - Performance-aware progressive enhancement
+
+Quality and systems engineering
+-------------------------------
+  - Contract-first architecture
+  - Separation of computation and presentation
+  - Defense-in-depth validation
+  - Cross-platform command handling
+  - Continuous integration design
+  - Unit, integration, browser, accessibility, and performance testing
+  - Git branching, incremental scoped commits, and remote synchronization
+  - Dependency pinning and automated update monitoring
+  - Security boundaries, trusted artifacts, CORS, and secret hygiene
+  - Technical documentation and interview-ready communication
+
+
+================================================================================
+19. LANGUAGES AND FILE FORMATS USED
+================================================================================
+
+  - Python
+  - TypeScript
+  - TSX / JSX semantics
+  - JavaScript and MJS configuration/profiling scripts
+  - HTML semantics expressed through React
+  - CSS and CSS Modules
+  - GLSL vertex and fragment shader code embedded in TypeScript
+  - JSON
+  - JSON Schema Draft 2020-12
+  - YAML for GitHub automation
+  - TOML for Python tool configuration
+  - Markdown documentation
+  - Plain-text requirements and this case study
+  - PowerShell commands
+  - POSIX shell commands in CI
+  - Environment-variable configuration
+  - Git attributes and ignore rules
+
+
+================================================================================
+20. FRAMEWORKS, LIBRARIES, SOFTWARE, AND SERVICES
+================================================================================
+
+Machine learning and Python runtime
+-----------------------------------
+  - Python 3.11+ for validation/API
+  - CPython 3.11 through 3.13 supported by the executable pipeline
+  - Verified local Python: 3.12.13
+  - PyTorch 2.14.0
+  - Verified build: PyTorch 2.14.0+cu132
+  - Torchvision 0.29.0 / verified 0.29.0+cu132
+  - NumPy 2.5.2 in the verified environment
+  - PyTorch FX graph-mode quantization
+  - torch.ao.quantization prepare_fx and convert_fx
+  - TorchScript export and reload
+  - oneDNN quantized CPU backend
+  - CUDA build used for training the verified FP32 checkpoint
+
+Python API and validation delivery
+----------------------------------
+  - FastAPI 0.141.1
+  - Uvicorn 0.52.4
+  - Pydantic 2.13.5 through FastAPI
+  - HTTPX 0.28.1 for service tests
+  - OpenAPI explorer generated by FastAPI
+
+Frontend runtime
+----------------
+  - Node.js 20.9 or newer supported
+  - GitHub CI Node.js 22
+  - Verified local Node.js v24.18.1
+  - npm with a committed package-lock.json
+  - Next.js 16.3.4 App Router
+  - React 19.2.8
+  - React DOM 19.2.8
+  - TypeScript 6.0.3
+  - Zod 4.5.4
+  - Recharts 3.10.1
+  - Lucide React 1.41.0
+  - Motion 13.2.0
+  - Three.js 0.185.1
+  - @react-three/fiber 9.7.0
+  - @react-three/drei 10.7.8
+  - Tailwind CSS 4 build tooling
+  - PostCSS with @tailwindcss/postcss 4.3.3
+  - Custom global CSS and CSS Modules as the primary styling system
+  - next/font, next/image, and dynamic imports
+  - Newsreader, Manrope, and IBM Plex Mono font families
+
+Python test and quality tooling
+-------------------------------
+  - pytest 9.1.1
+  - Ruff 0.16.6
+  - mypy 2.3.1 with strict validation/API checking
+  - unittest-style test classes where appropriate
+
+Frontend test and quality tooling
+---------------------------------
+  - ESLint 9.39.5
+  - eslint-config-next 16.3.4
+  - Vitest 5.0.0
+  - Vite 8.2.2
+  - Testing Library DOM and React
+  - Testing Library user-event
+  - jsdom 30.0.1
+  - V8 coverage
+  - Playwright 1.63.0
+  - @axe-core/playwright 4.11.0
+  - @testing-library/dom 10.4.1
+  - @testing-library/jest-dom 7.0.1
+  - @testing-library/react 16.3.3
+  - @testing-library/user-event 14.6.1
+  - @vitejs/plugin-react 6.1.1
+  - @vitest/coverage-v8 5.0.0
+  - vite-tsconfig-paths 6.1.1
+  - @types/node 24.13.3
+  - @types/react 19.2.18
+  - @types/react-dom 19.2.7
+  - @types/three 0.185.4
+  - Chromium, Firefox, and WebKit / Desktop Safari browser profiles
+  - axe-core Playwright accessibility checks
+  - Lighthouse 13.4.1 for historical lab measurement
+  - One-off requestAnimationFrame frame-pacing probe used during development;
+    its historical results are retained, but the probe script is not committed
+
+Development software
+--------------------
+  - Visual Studio Code
+  - Windows 11
+  - PowerShell and Windows Terminal/terminal integration
+  - Git
+  - GitHub private repository
+  - GitHub Actions on Ubuntu runners
+  - Dependabot
+  - Browser developer tools
+  - Python virtual environment
+  - pip for documented standard-environment installation
+  - uv 0.12.1 for the current environment/package compatibility check
+
+No required production services
+-------------------------------
+  - No database
+  - No authentication provider
+  - No user-account service
+  - No job queue
+  - No paid model API
+  - No LLM API
+  - No analytics vendor
+  - No stock-media service
+  - No required cloud-hosting account
+  - No required API key or runtime secret
+
+
+================================================================================
+21. AI USED IN THE PROJECT
+================================================================================
+
+There are two different meanings of "AI" here, and they should not be confused.
+
+AI inside the problem being solved
+----------------------------------
+The object under test is a real artificial-intelligence model: a ResNet-18
+convolutional neural network trained to classify CIFAR-10 images. Fidelity
+creates and validates an INT8 version of that network.
+
+AI used during development
+--------------------------
+OpenAI ChatGPT/Codex and Anthropic Claude Code were used as development and
+review assistants. They helped with implementation, design iteration, testing,
+code review, statistical questions, and documentation. Their suggestions were
+not accepted as runtime evidence; repository tests, strict parsers, real model
+execution, hashes, and browser checks were used to verify the work.
+
+AI not used by the running application
+--------------------------------------
+The application does not call OpenAI, Claude, Anthropic, Gemini, or any other
+LLM service. No prompt, token meter, hosted inference API, or provider key is
+part of Fidelity's runtime. ChatGPT Pro or Claude Code Pro subscriptions are
+development tools, not dependencies for someone running the project.
+
+
+================================================================================
+22. SERVERS, PORTS, AND DELIVERY TOPOLOGY
+================================================================================
+
+Server 1: Next.js development or production server
+---------------------------------------------------
+Purpose: Render the product site, bundled report, demo report, and server-side
+latest-report boundary.
+
+Development command:
+
+    cd web
+    npm.cmd run dev
+
+Default local URL:
+
+    http://localhost:3000
+
+Production-style commands:
+
+    npm.cmd run build
+    npm.cmd run start
+
+The bundled verified report and demo work without any backend service.
+
+
+Server 2: Optional FastAPI service through Uvicorn
+-------------------------------------------------
+Purpose: Read and serve the latest already-computed valid report.
+
+Command from repository root:
+
+    .\.venv\Scripts\python.exe -m uvicorn api.app:app --reload --port 8000
+
+Default local URL:
+
+    http://127.0.0.1:8000
+
+Endpoints:
+
+    GET /api/health
+    GET /api/reports/latest
+    GET /api/docs
+    GET /api/openapi.json
+
+The report path defaults to artifacts/latest-report.json. It can be overridden
+for the API process with FIDELITY_REPORT_PATH.
+
+The web process receives only a server-side origin:
+
+    FIDELITY_API_BASE_URL=http://127.0.0.1:8000
+
+It is intentionally not a NEXT_PUBLIC variable because the browser does not
+need the API origin.
+
+Other optional non-secret web/test variables are:
+
+    NEXT_PUBLIC_SITE_URL
+        Sets the metadata/OpenGraph base URL; defaults to localhost:3000.
+
+    PLAYWRIGHT_BASE_URL
+        Overrides the browser-test target; defaults to 127.0.0.1:3000.
+
+    CI
+        Enables the GitHub reporter, retries, and non-reused Playwright server
+        behavior in continuous integration.
+
+
+Automation service: GitHub Actions
+----------------------------------
+GitHub Actions runs four independent jobs:
+
+  1. Python 3.12 quality gates
+  2. CPU PyTorch quantization contracts
+  3. Node 22 web quality/build
+  4. Chromium, Firefox, and WebKit browser checks
+
+CI has read-only repository permissions, timeouts, branch concurrency
+cancellation, pip/npm caching, and diagnostic artifact uploads.
+
+
+Dependency service: Dependabot
+------------------------------
+  - npm dependencies checked weekly
+  - API/test Python dependencies checked weekly
+  - pipeline dependencies checked monthly
+  - open pull requests capped to prevent update noise
+
+
+What is not present
+-------------------
+The repository does not prove a public production deployment, domain, CDN,
+database server, Kubernetes cluster, Docker deployment, cloud account, or
+customer-facing authentication system. The verified delivery topology is local
+servers plus GitHub CI.
+
+
+================================================================================
+23. TESTING AND CURRENT VERIFICATION RESULTS
+================================================================================
+
+All checks below were rerun for this documentation pass on September 5, 2026.
+The expensive 20-epoch training job was not repeated; instead, its committed
+report and metadata were strictly revalidated, while miniature real PTQ,
+quantized inference, TorchScript export, and reload were executed again.
+
+Backend verification
+--------------------
+  PASS  Python test suite: 71 / 71
+  PASS  Ruff lint
+  PASS  Ruff formatting: 28 files already formatted
+  PASS  strict mypy: 9 validation/API source files
+  PASS  focused real CPU ML runtime checks: 7 / 7
+  PASS  pipeline command-line help
+  PASS  strict load of the bundled verified report
+  PASS  FastAPI health against real report: HTTP 200, report_available=true
+  PASS  FastAPI latest report: HTTP 200, correct run ID and ready verdict
+  PASS  OpenAPI document: HTTP 200
+  PASS  installed-package compatibility: all 40 packages compatible
+  PASS  temporary mismatched state dictionary was rejected
+  PASS  temporary full pickled module was rejected by weights-only loading
+
+Frontend verification
+---------------------
+  PASS  ESLint with no findings
+  PASS  TypeScript no-emit check
+  PASS  Vitest: 47 / 47 tests in 11 files
+  PASS  V8 statement coverage: 94.88% (204 / 215)
+  PASS  V8 branch coverage: 88.40% (122 / 138)
+  PASS  V8 function coverage: 96.66% (29 / 30)
+  PASS  V8 line coverage: 96.84% (184 / 190)
+  PASS  Next.js production build
+  PASS  Expected static outputs (including framework /_not-found) plus dynamic
+        /runs/[runId] generated
+  PASS  Playwright: 90 / 90 browser journeys with zero local retries
+        - 30 Chromium
+        - 30 Firefox
+        - 30 WebKit
+
+The production build and browser journeys are separate gates. The build proves
+that the optimized application compiles; the Playwright configuration starts
+the Next.js development server for its 90 cross-browser journeys.
+
+Browser coverage includes
+-------------------------
+  - all primary routes rendering their main heading and content without
+    browser errors;
+  - pointer and keyboard chart readings;
+  - exact report tooltips and readouts;
+  - desktop containment and non-overlap at multiple widths;
+  - compact menu keyboard use;
+  - continuous stage progression and live-scene activation before scroll;
+  - responsive scene/copy separation;
+  - reduced-motion content visibility;
+  - correct verified-report calls to action;
+  - demo/computed evidence separation;
+  - unknown run IDs;
+  - the computed-provenance marker and report export;
+  - automated axe accessibility scans.
+
+Non-blocking warnings observed
+------------------------------
+  - PyTorch warns that the current torch.ao FX quantization and TorchScript APIs
+    are moving toward newer torchao/PT2E and torch.export paths.
+  - oneDNN qconfig warns about possible accuracy characteristics on CPUs without
+    VNNI. The current pinned runtime tests still pass.
+  - Three.js reports a future Clock-to-Timer deprecation through the rendering
+    stack. The current scene and all browser tests still pass.
+  - This Windows PowerShell policy blocks npm.ps1. Calling npm.cmd works and is
+    already handled by the Playwright configuration. This is a machine launcher
+    policy, not an application failure.
+
+
+================================================================================
+24. EXACT COMMANDS TO RUN AND REPRODUCE THE PROJECT
+================================================================================
+
+24.1 Start the website only
+---------------------------
+
+    cd C:\Users\divya\Desktop\Fidelity\web
+    npm.cmd ci
+    npm.cmd run dev
+
+Open:
+
+    http://localhost:3000
+
+The website, demo, and bundled verified report need no API key.
+
+
+24.2 Inspect the real bundled report directly
+---------------------------------------------
+
+    http://localhost:3000/runs/cifar10-resnet18-int8-seed2026
+
+
+24.3 Create a Python environment
+--------------------------------
+
+    cd C:\Users\divya\Desktop\Fidelity
+    py -3.12 -m venv .venv
+    .\.venv\Scripts\python.exe --version
+    .\.venv\Scripts\python.exe -m pip install --upgrade pip
+    .\.venv\Scripts\python.exe -m pip install -r tests/python/requirements.txt -r api/requirements.txt
+    .\.venv\Scripts\python.exe -m pip install --index-url https://download.pytorch.org/whl/cpu -r pipeline/requirements.txt
+
+For CUDA training, use the matching official PyTorch installation command for
+the machine. INT8 conversion and evaluation remain CPU operations.
+
+Use CPython 3.11, 3.12, or 3.13 for the executable pipeline. Do not create this
+environment with a newer unsupported default interpreter. If the Windows Python
+launcher does not provide 3.12, an equivalent free uv command is:
+
+    uv venv --python 3.12 --seed .venv
+
+
+24.4 Run a complete new training and evidence pipeline
+------------------------------------------------------
+
+    .\.venv\Scripts\python.exe -m pipeline --download --epochs 20 --device auto
+
+Generated run output:
+
+    artifacts/runs/<run-id>/fp32-checkpoint.pt
+    artifacts/runs/<run-id>/int8-fx-static.torchscript.pt
+    artifacts/runs/<run-id>/validation-report.json
+    artifacts/runs/<run-id>/metadata.json
+    artifacts/latest-report.json
+
+
+24.5 Resume interrupted training
+--------------------------------
+
+    .\.venv\Scripts\python.exe -m pipeline --download --resume artifacts/runs/<run-id>/fp32-checkpoint.pt --epochs 20
+
+
+24.6 Re-evaluate an existing Fidelity checkpoint
+-------------------------------------------------
+
+    .\.venv\Scripts\python.exe -m pipeline --no-download --epochs 0 --resume artifacts/runs/<run-id>/fp32-checkpoint.pt --run-id <evaluation-run-id>
+
+
+24.7 Start the optional report API
+----------------------------------
+
+    .\.venv\Scripts\python.exe -m uvicorn api.app:app --reload --port 8000
+
+Create web/.env.local containing:
+
+    FIDELITY_API_BASE_URL=http://127.0.0.1:8000
+
+Restart the Next.js server and open:
+
+    http://localhost:3000/runs/latest
+
+
+24.8 Python quality checks
+--------------------------
+
+    .\.venv\Scripts\python.exe -m pytest tests/python
+    .\.venv\Scripts\python.exe -m ruff check api validation pipeline quantize tests/python
+    .\.venv\Scripts\python.exe -m ruff format --check api validation pipeline quantize tests/python
+    .\.venv\Scripts\python.exe -m mypy validation api
+
+
+24.9 Frontend quality checks
+----------------------------
+
+    cd web
+    npm.cmd run lint
+    npm.cmd run typecheck
+    npm.cmd run test:coverage
+    npm.cmd run build
+    npm.cmd run test:e2e
+
+
+24.10 Revalidate the tracked report with the authoritative loader
+-----------------------------------------------------------------
+
+    .\.venv\Scripts\python.exe -c "from validation.serializer import load_report; load_report(r'web/lib/verified-runs/cifar10-resnet18-int8-seed2026/report.json'); print('valid')"
+
+
+24.11 Exact historical commands used for the verified run
+----------------------------------------------------------
+The FP32 training run used:
+
+    .\.venv\Scripts\python.exe -u -m pipeline --data-dir data/cifar10-hf --download --epochs 20 --run-id cifar10-resnet18-int8-seed2026-real --num-workers 4 --train-batch-size 128 --evaluation-batch-size 512 --calibration-samples 2048 --max-calibration-batches 8 --device cuda
+
+The final report was reproduced from that checkpoint through the hardened
+export/reload path with:
+
+    .\.venv\Scripts\python.exe -u -m pipeline --data-dir data/cifar10-hf --no-download --epochs 0 --resume artifacts/runs/cifar10-resnet18-int8-seed2026-real/fp32-checkpoint.pt --run-id cifar10-resnet18-int8-seed2026 --num-workers 4 --evaluation-batch-size 512 --calibration-samples 2048 --max-calibration-batches 8 --device cuda
+
+Those are provenance commands for the recorded run. Running them requires the
+matching dataset, source checkpoint lineage, supported PyTorch/CUDA setup, and
+machine resources; the committed model artifacts themselves are intentionally
+git-ignored.
+
+
+================================================================================
+25. COST MODEL
+================================================================================
+
+Required project software cost: $0
+
+Fidelity can be installed and run locally with open-source packages. It has no
+paid API, database, model-hosting, analytics, image, or authentication
+dependency. Network access is needed only when installing dependencies or
+downloading CIFAR-10, and may be needed when next/font acquires Google font
+files during a fresh build. A chosen public hosting provider could introduce
+its own cost later, but no hosting bill is required by this repository.
+
+Development subscriptions such as ChatGPT Pro or Claude Code Pro are not
+runtime project costs and are not required for another person to run Fidelity.
+
+
+================================================================================
+26. HONEST LIMITATIONS
+================================================================================
+
+  1. The executable reference adapter is intentionally narrow: CIFAR-10,
+     adapted ResNet-18, and compatible PyTorch FX CPU classifiers.
+
+  2. There is no public model-upload workflow. Users run the local pipeline.
+
+  3. There is no background job queue, progress stream, user account, database,
+     organization workspace, or persistent multi-run registry service.
+
+  4. Generated checkpoints and TorchScript files are git-ignored and are not
+     distributed. The repository bundles the report and metadata.
+
+  5. Seeds and hashes improve auditability but cannot guarantee identical bytes
+     on a different OS, GPU, driver, CPU, or PyTorch version.
+
+  6. The current FX quantization/TorchScript adapter uses APIs that PyTorch is
+     deprecating toward torchao/PT2E and torch.export.
+
+  7. Fidelity does not currently measure latency, model file size, memory,
+     energy, or power on a deployment device.
+
+  8. Mean KL is prediction-distribution drift, not a complete probability
+     calibration analysis. ECE and reliability curves are not implemented.
+
+  9. Fairness, robustness, privacy, security, adversarial examples,
+     out-of-distribution behavior, and subgroup impact are not measured.
+
+ 10. Default policy thresholds are auditable demonstration guardrails, not
+     universal safety standards. A real owner must choose domain-specific
+     thresholds and adequate class/subgroup sample sizes.
+
+ 11. A non-significant test is not proof of equivalence.
+
+ 12. The current schema uses the Wilcoxon signed-rank name for paired binary
+     outcomes whose exact calculation reduces to binomial/McNemar-like evidence.
+     A future contract could use clearer McNemar terminology and explicit
+     discordant counts.
+
+ 13. Negative checkpoint behavior has been manually exercised, but committed
+     regression tests for a deliberately mismatched tensor shape and a full
+     pickled module would strengthen the suite.
+
+ 14. A dedicated orchestrator regression test that proves both evaluator calls
+     receive the identical loader object would protect future refactors.
+
+ 15. A heterogeneous multi-row KL reference test that distinguishes mean
+     per-image KL from pooled-distribution KL would make the mathematical intent
+     even more explicit.
+
+ 16. A real public deployment would still need HTTPS, authentication/network
+     policy, production CORS, restricted artifact-directory writes, monitoring,
+     logging policy, and real-user telemetry.
+
+  17. Historical Lighthouse measurements are synthetic local lab data and do
+     not guarantee production performance. The current higher-density scene
+     needs a fresh benchmark before quoting new scores.
+
+ 18. Automated accessibility checks do not replace manual screen-reader, zoom,
+     high-contrast, or assistive-technology testing.
+
+ 19. Fidelity is independent and is not affiliated with, endorsed by, or
+     sponsored by Fidelity Investments or its affiliates.
+
+
+================================================================================
+27. HIGH-VALUE FUTURE WORK
+================================================================================
+
+Near-term correctness work
+--------------------------
+  - Version the statistical contract toward exact McNemar terminology.
+  - Serialize candidate-only and reference-only discordant counts.
+  - Add committed negative checkpoint tests.
+  - Add explicit identical-loader and target-mismatch orchestration tests.
+  - Add the heterogeneous per-image-versus-pooled KL reference test.
+  - Migrate deprecated quantization/export adapters while preserving report
+    semantics.
+
+Model-validation expansion
+--------------------------
+  - Add model adapters beyond CIFAR ResNet-18.
+  - Add user-selected local checkpoints through a safe, non-public workflow.
+  - Add latency, memory, file-size, and energy measurements on target hardware.
+  - Add ECE, reliability diagrams, and other calibration evidence.
+  - Add robustness, subgroup, and out-of-distribution evaluation modules.
+  - Add explicit equivalence/non-inferiority study designs when a meaningful
+    domain margin is supplied.
+
+Product expansion
+-----------------
+  - Add a local run registry and comparison history.
+  - Add background jobs with honest backend progress events.
+  - Add authenticated artifact ownership for a hosted version.
+  - Add policy editing with versioning and approval history.
+  - Add report signing/attestation and supply-chain provenance.
+  - Add real-user performance monitoring after deployment.
+
+
+================================================================================
+28. HOW TO DEMONSTRATE FIDELITY
+================================================================================
+
+Two-minute demonstration script
+-------------------------------
+
+1. Open the homepage.
+
+   Say:
+   "The blue side is the original FP32 model. The orange side is the
+   lower-precision INT8 candidate. The animation explains the transformation
+   Fidelity is validating."
+
+2. Open How It Works.
+
+   Say:
+   "The model is trained or resumed, calibrated on training data, exported as a
+   real INT8 artifact, reloaded, and compared with FP32 on the same ordered
+   10,000 held-out images."
+
+3. Open the verified report, not the illustrative demo.
+
+   Say:
+   "FP32 achieved 92.39 percent and INT8 achieved 92.38 percent. That is only
+   one fewer correct answer overall. These values came from the pipeline, not
+   from the frontend."
+
+4. Hover or keyboard through the class chart.
+
+   Say:
+   "Overall accuracy can hide class movement, so every class remains
+   inspectable. Cat improved 0.9 points while Dog and Frog each fell 0.3."
+
+5. Inspect prediction drift and paired evidence.
+
+   Say:
+   "Fidelity also compares each image's probability distribution and counts how
+   many paired outcomes changed correctness. This version does not expose the
+   individual image IDs. The paired test did not detect an overall difference,
+   but that is not the same as proving equivalence."
+
+6. Finish at the verdict.
+
+   Say:
+   "The backend marked this run ready because no serialized demonstration
+   guardrail fired. The run record includes the policy-bearing report plus
+   separately recorded metadata hashes, so its evidence can be inspected
+   later."
+
+Closing line:
+
+   "Fidelity does not just quantize a model. It produces evidence showing what
+   changed after quantization."
+
+
+================================================================================
+29. COMMON INTERVIEW QUESTIONS AND ANSWERS
+================================================================================
+
+Q: What problem did you solve?
+A: Model compression can silently change predictions. I built an end-to-end
+   system that compares the original and quantized model on paired data and
+   produces reproducible evidence instead of assuming accuracy was preserved.
+
+Q: Why is this more than an accuracy dashboard?
+A: The values come from a real PyTorch conversion and paired evaluation. The
+   system also measures every class, per-image distribution drift, discordant
+   correctness, policy thresholds, provenance, and artifact hashes. Strict
+   loaders reject inconsistent evidence.
+
+Q: Why use the same images for both models?
+A: Otherwise data-selection differences could be mistaken for quantization
+   effects. Pairing lets the system count correctness transitions without that
+   confounding. This v1 report does not expose the individual image IDs.
+
+Q: Why evaluate the reloaded INT8 artifact?
+A: The serialized model is what would move toward deployment. In-memory success
+   does not prove export and reload work.
+
+Q: What does p = 1.0 mean here?
+A: It does not mean identical predictions. Thirty-nine correctness outcomes
+   changed, but gains and losses were 19 versus 20, so this two-sided paired
+   exact test did not detect a statistically significant paired accuracy
+   difference.
+
+Q: Does ready mean safe for production?
+A: No. It means this run did not cross its serialized demonstration thresholds.
+   A deployment owner must add domain policy, hardware benchmarks, robustness,
+   fairness, privacy, security, and operational evidence.
+
+Q: How do you know the statistics are not invented by the UI?
+A: Python computes them, applies policy, and serializes a strict versioned
+   report. The Python loader recomputes count-derived relationships, paired
+   evidence, and policy consistency. TypeScript then performs a second strict
+   parse. The browser only presents accepted evidence. Mean KL still relies on
+   the serialized measurement because probability rows are not in the report.
+
+Q: Where is AI used?
+A: The model under test is a ResNet-18 vision model. ChatGPT/Codex and Claude
+   Code assisted development and review, but the running product calls no LLM
+   or paid AI API.
+
+Q: What was the hardest engineering problem?
+A: Maintaining trust across the entire chain was harder than drawing the UI:
+   same-sample pairing, deterministic resume, validating the exported artifact,
+   exact tied binary evidence, internally reconciled serialization, and keeping
+   demo data separate from computed evidence.
+
+Q: What would you build next?
+A: I would clarify the paired binary method as exact McNemar in a versioned
+   schema, add the remaining negative regression tests, migrate from deprecated
+   FX/TorchScript paths, and measure latency, size, memory, and energy on actual
+   target hardware.
+
+
+================================================================================
+30. GLOSSARY
+================================================================================
+
+FP32
+    32-bit floating-point representation used by the reference model.
+
+INT8
+    8-bit integer representation used by the quantized candidate.
+
+Quantization
+    Converting eligible model computation and stored values to lower-precision
+    numerical representations.
+
+Post-training quantization (PTQ)
+    Quantization performed after training rather than retraining the model with
+    quantization simulated during training.
+
+Calibration
+    Running representative inputs through prepared observers so useful numeric
+    ranges can be selected for static quantization.
+
+ResNet-18
+    An 18-layer residual convolutional neural-network architecture.
+
+Top-1 accuracy
+    Fraction of examples for which the model's highest-probability class equals
+    the ground-truth class.
+
+Percentage point
+    Direct difference between two percentage values. 92.39% to 92.38% is
+    -0.01 percentage points.
+
+Softmax
+    Transformation that converts logits into a class-probability distribution.
+
+KL divergence
+    Directional measure of how one probability distribution differs from
+    another. Fidelity uses KL(reference || candidate) per image, then averages.
+
+Paired test
+    A test that keeps the FP32 and INT8 result for the same image together.
+
+p-value
+    A probability calculated under a null model. A large p-value means this
+    test did not find strong evidence against that null; it does not prove the
+    models are equal.
+
+Provenance
+    Machine-readable information describing whether evidence is computed or
+    illustrative and where it came from.
+
+Policy verdict
+    Backend-owned ready, review, or blocked result produced by versioned
+    thresholds and paired evidence.
+
+TorchScript
+    PyTorch serialized executable model format used by this implementation.
+
+WebGL
+    Browser graphics interface used by the procedural 3D hero.
+
+Zod
+    TypeScript runtime-validation library used at the frontend report boundary.
+
+Atomic write
+    Writing to a temporary file, flushing and fsyncing its contents, and then
+    replacing the destination, reducing partially written artifacts.
+
+SHA-256
+    Cryptographic hash used here to identify exact bytes and ordered evidence.
+
+
+================================================================================
+31. FINAL PROJECT SUMMARY
+================================================================================
+
+Fidelity solves a focused but genuine ML-engineering problem: a transformed
+model should not be trusted merely because conversion completed or aggregate
+accuracy looks close.
+
+The project demonstrates the full chain:
+
+    real data
+      -> real training
+      -> real INT8 quantization
+      -> export and reload
+      -> fair paired evaluation
+      -> tested statistics
+      -> versioned policy
+      -> strict, internally reconciled report
+      -> optional read-only API
+      -> strict frontend validation
+      -> accessible interactive explanation
+      -> reproducible portfolio evidence
+
+The verified result is strong because it is narrow and honest. For this
+specific ResNet-18, CIFAR-10 test split, quantization method, and policy, INT8
+changed top-1 accuracy from 92.39% to 92.38%, moved 39 correctness outcomes,
+produced very small mean per-image KL drift, and crossed no configured
+guardrail. Fidelity shows all of that context instead of reducing the result to
+a green card.
+
+That is the real achievement of the project: not claiming that compression is
+safe, but building a system that makes the evidence, assumptions, changes, and
+limits inspectable.
+
+================================================================================
+END OF DOCUMENT
+================================================================================

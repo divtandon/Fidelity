@@ -12,6 +12,11 @@ an optional read-only FastAPI delivery boundary. Metrics and verdicts originate
 in the Python report pipeline; the browser presents that evidence but never
 manufactures a computed result.
 
+For the complete build story, including the real-world problem, architecture,
+algorithms, UI, challenges, verified results, technology inventory, servers,
+AI usage, testing, limitations, and interview demo, read
+[FIDELITY_COMPLETE_PROJECT_STORY.txt](FIDELITY_COMPLETE_PROJECT_STORY.txt).
+
 ![Fidelity's cinematic FP32-to-INT8 home experience](docs/home.png)
 
 ## Project status
