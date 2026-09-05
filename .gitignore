@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+
+# Generated model and report artifacts
+artifacts/*.json
+artifacts/*.pt
+artifacts/*.pth
+artifacts/*.onnx
+models/
+data/
+
+# Local environment and editors
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+.DS_Store
