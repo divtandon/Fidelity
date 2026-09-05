@@ -7,10 +7,7 @@ __pycache__/
 .venv/
 
 # Generated model and report artifacts
-artifacts/*.json
-artifacts/*.pt
-artifacts/*.pth
-artifacts/*.onnx
+artifacts/
 models/
 data/
 
