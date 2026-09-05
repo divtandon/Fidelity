@@ -90,8 +90,8 @@ export default function DocsPage() {
               <h2>Run the interface locally.</h2>
               <p className="docs-lead">No account, API key, paid dataset, or hosted service is required for the website. The repository uses npm’s lockfile for a repeatable frontend install.</p>
               <CodeBlock code={webStart} label="PowerShell or terminal" />
-              <div className="docs-callout docs-callout--info"><CircleAlert size={18} /><p>The current repository includes the computation engine and a clearly labeled interface fixture. Real accuracy values appear only after you provide a trained model and evaluation data.</p></div>
-              <p className="docs-lead">To present a computed artifact, start the optional report service and set the server-only URL in <code>web/.env.local</code>. The UI validates every response and stays explicitly unavailable if the service, artifact, or contract is missing.</p>
+              <div className="docs-callout docs-callout--info"><CircleAlert size={18} /><p>This repository includes a bundled, verified CIFAR-10 / ResNet-18 report with computed FP32 and INT8 results. You can inspect it without providing another model or starting the optional service.</p></div>
+              <p className="docs-lead">To present additional computed reports, start the optional report service and set the server-only URL in <code>web/.env.local</code>. The bundled verified report remains available independently; the latest-report view validates each service response and stays explicitly unavailable if the service, artifact, or contract is missing.</p>
               <CodeBlock code={reportService} label="Optional computed-report connection" />
             </section>
 

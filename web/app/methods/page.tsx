@@ -129,12 +129,13 @@ export default function MethodsPage() {
             <article className="method-chapter method-chapter--focus" id="significance">
               <div className="method-chapter__number"><span>05</span><Asterisk size={22} strokeWidth={1.5} /></div>
               <div className="method-chapter__content">
-                <p className="eyebrow">Wilcoxon signed-rank</p>
+                <p className="eyebrow">Paired binary test</p>
                 <h2>No detected difference is not proof of equivalence.</h2>
                 <p className="method-lead">
-                  The reference implementation tests paired per-example correctness differences. Zero differences
-                  are excluded; exact random-sign enumeration is used where feasible, with the method and pair counts
-                  recorded beside the p-value.
+                  The report contract retains the Wilcoxon signed-rank label. For binary per-example correctness,
+                  every non-zero absolute difference is tied, so Fidelity excludes zero differences and calculates
+                  the exact random-sign p-value with the equivalent binomial distribution. The method and pair counts
+                  are recorded beside the p-value.
                 </p>
                 <div className="not-equal-callout">
                   <div><span>p ≥ α</span><strong>Test did not detect a difference</strong></div>
