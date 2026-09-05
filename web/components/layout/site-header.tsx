@@ -10,6 +10,7 @@ import { FEATURED_RUN_HREF } from "@/lib/featured-run";
 
 const navigation = [
   { href: "/product", label: "Product" },
+  { href: "/how-it-works", label: "How it works" },
   { href: "/methods", label: "Methods" },
   { href: "/docs", label: "Docs" },
 ];
@@ -33,7 +34,7 @@ export function SiteHeader() {
           <a href="https://github.com/divtandon/Fidelity" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={13} /></a>
         </nav>
         <div className="site-header__actions">
-          <Link className="nav-cta" href={FEATURED_RUN_HREF}>View report <span aria-hidden="true">↗</span></Link>
+          <Link className="nav-cta" href={FEATURED_RUN_HREF}>View report <ArrowUpRight aria-hidden="true" size={14} /></Link>
           <button
             className="menu-button"
             type="button"
