@@ -18,12 +18,22 @@ type CompressionSceneProps = {
 function CompressionRig({ progress, pointer, compact }: CompressionSceneProps) {
   const rigRef = useRef<THREE.Group>(null);
   const { width, height } = useThree((state) => state.size);
-  const sceneScale = Math.min(1.02, Math.max(0.3, (width / height) * 0.72));
-  const sceneX = sceneScale < 0.75 ? 0.05 : 0.65;
-  useFrame(() => {
+  const aspect = width / height;
+  const sceneScale = compact
+    ? Math.min(0.58, Math.max(0.32, aspect * 0.74))
+    : Math.min(1.32, Math.max(1.06, aspect * 0.82));
+  const sceneX = compact ? 0.03 : 0;
+  useFrame(({ clock }, delta) => {
     if (!rigRef.current) return;
-    rigRef.current.rotation.y += (pointer.current.x * 0.045 - rigRef.current.rotation.y) * 0.025;
-    rigRef.current.rotation.x += (-pointer.current.y * 0.025 - rigRef.current.rotation.x) * 0.025;
+    const elapsed = clock.elapsedTime;
+    const damping = 1 - Math.exp(-delta * 2.4);
+    const idleYaw = Math.sin(elapsed * 0.23) * 0.022;
+    const idlePitch = Math.cos(elapsed * 0.19) * 0.012;
+    const targetYaw = pointer.current.x * 0.045 + idleYaw;
+    const targetPitch = -pointer.current.y * 0.025 + idlePitch;
+    rigRef.current.rotation.y += (targetYaw - rigRef.current.rotation.y) * damping;
+    rigRef.current.rotation.x += (targetPitch - rigRef.current.rotation.x) * damping;
+    rigRef.current.position.y = 0.12 + Math.sin(elapsed * 0.34) * 0.025;
   });
 
   return (
@@ -48,12 +58,13 @@ export function CompressionScene({ progress, pointer, compact }: CompressionScen
       <div className="compression-canvas">
         <Canvas
           dpr={compact ? 1 : [1, 1.5]}
+          frameloop="always"
           camera={{ position: [0, 0, 9], fov: 43, near: 0.1, far: 40 }}
           gl={{ antialias: !compact, alpha: true, powerPreference: "high-performance" }}
         >
-          <ambientLight intensity={1.6} color="#f7f3ff" />
-          <directionalLight position={[1, 4, 6]} intensity={2.6} color="#fff4e9" />
-          <directionalLight position={[-5, -2, 3]} intensity={1.2} color="#7791ff" />
+          <ambientLight intensity={2.05} color="#f7f3ff" />
+          <directionalLight position={[1, 4, 6]} intensity={3.7} color="#fff1e5" />
+          <directionalLight position={[-5, -2, 3]} intensity={1.9} color="#526fff" />
           <Suspense fallback={null}><CompressionRig progress={progress} pointer={pointer} compact={compact} /></Suspense>
         </Canvas>
       </div>
