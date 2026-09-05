@@ -34,7 +34,7 @@ export const demoReport = parseValidationReport({
     alternative: "two-sided",
     valid: true,
     median_difference: 0,
-    note: "Illustrative exact random-sign result for the demo fixture.",
+    note: null,
     alpha: 0.05,
     is_significant: false,
     interpretation: "no_statistically_detectable_difference",

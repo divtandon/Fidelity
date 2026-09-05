@@ -21,7 +21,7 @@ const significanceSchema = z.object({
   n_pairs: z.number().int().positive(),
   n_nonzero: z.number().int().nonnegative(),
   method: z.enum(["exact_permutation", "normal_approximation", "not_applicable"]),
-  alternative: z.enum(["two-sided", "less", "greater"]),
+  alternative: z.literal("two-sided"),
   valid: z.boolean(),
   median_difference: finiteNumber,
   note: z.string().nullable(),
