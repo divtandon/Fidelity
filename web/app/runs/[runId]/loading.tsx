@@ -1,6 +1,12 @@
 export default function LoadingRun() {
   return (
-    <main id="main-content" className="report-page report-loading" aria-busy="true" aria-label="Loading validation report">
+    <div
+      className="report-page report-loading"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Loading validation report"
+    >
       <div className="page-shell">
         <div className="report-loading__bar" />
         <div className="report-loading__bar report-loading__title" />
@@ -9,6 +15,6 @@ export default function LoadingRun() {
           <div className="report-loading__block" />
         </div>
       </div>
-    </main>
+    </div>
   );
 }
