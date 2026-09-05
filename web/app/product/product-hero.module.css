@@ -10,7 +10,11 @@
   min-height: 540px;
 }
 
-.heroCopy h1 { font-size: clamp(4rem, 6.3vw, 7rem); }
+.heroCopy h1 {
+  font-size: clamp(4rem, 6.3vw, 7rem);
+  letter-spacing: -0.025em;
+  line-height: 1.03;
+}
 
 .summary {
   max-width: 35rem !important;
