@@ -22,7 +22,7 @@ function CompressionRig({ progress, pointer, compact }: Pick<CompressionScenePro
   const { width, height } = useThree((state) => state.size);
   const aspect = width / height;
   const sceneScale = compact
-    ? Math.min(0.58, Math.max(0.32, aspect * 0.74))
+    ? Math.min(0.54, Math.max(0.42, aspect * 0.88))
     : Math.min(1.32, Math.max(1.06, aspect * 0.82));
   const sceneX = compact ? 0.03 : 0;
   useFrame(({ clock }, delta) => {
@@ -61,7 +61,7 @@ export function CompressionScene({ progress, pointer, compact, onReady, onFailur
         <Canvas
           dpr={compact ? 1 : [1, 1.5]}
           frameloop="always"
-          camera={{ position: [0, 0, 9], fov: 43, near: 0.1, far: 40 }}
+          camera={{ position: [0, 0, 9], fov: compact ? 47 : 43, near: 0.1, far: 40 }}
           gl={{ antialias: !compact, alpha: true, powerPreference: "high-performance" }}
           onCreated={onReady}
         >
