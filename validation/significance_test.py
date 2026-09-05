@@ -1,8 +1,10 @@
 """Dependency-free paired Wilcoxon signed-rank testing.
 
 The implementation uses the exact random-sign permutation distribution for
-up to ``exact_max_n`` non-zero pairs and a tie-aware normal approximation for
-larger samples.  Zero differences are excluded (Wilcox's zero method).
+up to ``exact_max_n`` non-zero pairs. Samples whose non-zero absolute
+differences are all tied use the equivalent exact binomial distribution at
+any supported size; other larger samples use a tie-aware normal approximation.
+Zero differences are excluded (Wilcox's zero method).
 """
 
 from __future__ import annotations
@@ -15,6 +17,12 @@ from statistics import median
 from typing import Any, Literal
 
 Alternative = Literal["two-sided", "less", "greater"]
+
+# Aggregate reports do not carry the per-sample arrays that naturally bound
+# ``wilcoxon_signed_rank``. Cap their claimed size before allocating exact
+# binomial integers; ten million binary pairs already represent a substantial
+# materialized validation run while keeping the count itself realistic.
+MAX_EXACT_BINARY_PAIRS = 10_000_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +118,74 @@ def _exact_p_value(
     return min(1.0, extreme / permutations)
 
 
+def _binomial_range_count(n: int, minimum: int, maximum: int) -> int:
+    """Return an inclusive range sum of binomial coefficients."""
+
+    if minimum > maximum:
+        return 0
+    term = math.comb(n, minimum)
+    total = term
+    for k in range(minimum, maximum):
+        term = term * (n - k) // (k + 1)
+        total += term
+    return total
+
+
+def _binomial_lower_tail_count(n: int, maximum: int) -> int:
+    """Return ``sum(comb(n, k), k=0..maximum)`` by the shorter tail."""
+
+    if maximum < 0:
+        return 0
+    if maximum >= n:
+        return 1 << n
+    midpoint = n // 2
+    if maximum > midpoint:
+        return (1 << n) - _binomial_lower_tail_count(n, n - maximum - 1)
+
+    if n % 2:
+        if maximum == midpoint:
+            return 1 << (n - 1)
+        omitted_terms = midpoint - maximum
+        direct_terms = maximum + 1
+        if omitted_terms < direct_terms:
+            return (1 << (n - 1)) - _binomial_range_count(n, maximum + 1, midpoint)
+    else:
+        if maximum == midpoint:
+            central = math.comb(n, midpoint)
+            return ((1 << n) + central) // 2
+        omitted_terms = midpoint - maximum - 1
+        direct_terms = maximum + 1
+        if omitted_terms < direct_terms:
+            central = math.comb(n, midpoint)
+            below_center = ((1 << n) - central) // 2
+            return below_center - _binomial_range_count(n, maximum + 1, midpoint - 1)
+    return _binomial_range_count(n, 0, maximum)
+
+
+def _exact_binomial_p_value(n: int, n_positive: int, alternative: Alternative) -> float:
+    """Return the exact random-sign p-value when every rank is tied."""
+
+    if n > MAX_EXACT_BINARY_PAIRS:
+        raise ValueError(
+            "exact binomial pairs cannot exceed "
+            f"MAX_EXACT_BINARY_PAIRS ({MAX_EXACT_BINARY_PAIRS:,})"
+        )
+    if alternative == "two-sided":
+        observed_statistic = min(n_positive, n - n_positive)
+        if observed_statistic == n // 2:
+            return 1.0
+        permutations = 1 << n
+        extreme = 2 * _binomial_lower_tail_count(n, observed_statistic)
+        return extreme / permutations
+
+    permutations = 1 << n
+    if alternative == "less":
+        extreme = _binomial_lower_tail_count(n, n_positive)
+    else:
+        extreme = _binomial_lower_tail_count(n, n - n_positive)
+    return extreme / permutations
+
+
 def _normal_p_value(
     ranks: list[float], positive_rank_sum: float, alternative: Alternative
 ) -> float:
@@ -129,6 +205,95 @@ def _normal_p_value(
     return 0.5 * math.erfc(z_score / math.sqrt(2.0))
 
 
+def _validate_alternative(alternative: Alternative) -> None:
+    if alternative not in {"two-sided", "less", "greater"}:
+        raise ValueError("alternative must be 'two-sided', 'less', or 'greater'")
+
+
+def _binary_median_difference(n_pairs: int, gains: int, losses: int) -> float:
+    first_gain = n_pairs - gains
+
+    def ordered_value(index: int) -> float:
+        if index < losses:
+            return -1.0
+        if index < first_gain:
+            return 0.0
+        return 1.0
+
+    middle = n_pairs // 2
+    if n_pairs % 2:
+        return ordered_value(middle)
+    return (ordered_value(middle - 1) + ordered_value(middle)) / 2.0
+
+
+def binary_correctness_signed_rank(
+    n_pairs: int,
+    gains: int,
+    losses: int,
+    *,
+    alternative: Alternative = "two-sided",
+) -> WilcoxonResult:
+    """Test paired binary correctness from aggregate transition counts.
+
+    ``gains`` counts pairs where only the candidate is correct, while
+    ``losses`` counts pairs where only the reference is correct. Remaining
+    pairs are correctness ties. The result matches materializing those binary
+    pairs and passing them to :func:`wilcoxon_signed_rank`.
+
+    ``n_pairs`` is capped at :data:`MAX_EXACT_BINARY_PAIRS` so an aggregate
+    artifact cannot request impractically large exact binomial integers.
+    """
+
+    _validate_alternative(alternative)
+    for name, value in (("n_pairs", n_pairs), ("gains", gains), ("losses", losses)):
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise TypeError(f"{name} must be an integer")
+    if n_pairs < 1:
+        raise ValueError("n_pairs must be a positive integer")
+    if n_pairs > MAX_EXACT_BINARY_PAIRS:
+        raise ValueError(
+            f"n_pairs cannot exceed MAX_EXACT_BINARY_PAIRS ({MAX_EXACT_BINARY_PAIRS:,})"
+        )
+    if gains < 0 or losses < 0:
+        raise ValueError("gains and losses must be non-negative")
+    if gains > n_pairs or losses > n_pairs or gains + losses > n_pairs:
+        raise ValueError("gains plus losses cannot exceed n_pairs")
+
+    n_nonzero = gains + losses
+    median_difference = _binary_median_difference(n_pairs, gains, losses)
+    if n_nonzero == 0:
+        return WilcoxonResult(
+            statistic=0.0,
+            p_value=1.0,
+            n_pairs=n_pairs,
+            n_nonzero=0,
+            method="not_applicable",
+            alternative=alternative,
+            valid=False,
+            median_difference=median_difference,
+            note="All paired differences are zero; the signed-rank statistic is undefined.",
+        )
+
+    average_rank = (n_nonzero + 1) / 2.0
+    positive_rank_sum = gains * average_rank
+    negative_rank_sum = losses * average_rank
+    statistic = (
+        min(positive_rank_sum, negative_rank_sum)
+        if alternative == "two-sided"
+        else positive_rank_sum
+    )
+    return WilcoxonResult(
+        statistic=statistic,
+        p_value=_exact_binomial_p_value(n_nonzero, gains, alternative),
+        n_pairs=n_pairs,
+        n_nonzero=n_nonzero,
+        method="exact_permutation",
+        alternative=alternative,
+        valid=True,
+        median_difference=median_difference,
+    )
+
+
 def wilcoxon_signed_rank(
     reference_values: Iterable[float],
     candidate_values: Iterable[float],
@@ -143,8 +308,7 @@ def wilcoxon_signed_rank(
     The default two-sided form is used by Fidelity's report builder.
     """
 
-    if alternative not in {"two-sided", "less", "greater"}:
-        raise ValueError("alternative must be 'two-sided', 'less', or 'greater'")
+    _validate_alternative(alternative)
     if (
         not isinstance(exact_max_n, int)
         or isinstance(exact_max_n, bool)
@@ -184,7 +348,8 @@ def wilcoxon_signed_rank(
             note="All paired differences are zero; the signed-rank statistic is undefined.",
         )
 
-    ranks = _average_ranks([abs(difference) for difference in differences])
+    absolute_differences = [abs(difference) for difference in differences]
+    ranks = _average_ranks(absolute_differences)
     positive_rank_sum = math.fsum(
         rank
         for rank, difference in zip(ranks, differences, strict=True)
@@ -197,7 +362,15 @@ def wilcoxon_signed_rank(
         else positive_rank_sum
     )
 
-    if len(differences) <= exact_max_n:
+    all_absolute_differences_tied = all(
+        difference == absolute_differences[0] for difference in absolute_differences[1:]
+    )
+    if all_absolute_differences_tied:
+        n_positive = sum(difference > 0.0 for difference in differences)
+        p_value = _exact_binomial_p_value(len(differences), n_positive, alternative)
+        method = "exact_permutation"
+        note = None
+    elif len(differences) <= exact_max_n:
         # Average ranks are integer or half-integer, so doubling retains exact
         # rank sums for the permutation distribution.
         scaled_ranks = [round(rank * 2.0) for rank in ranks]
