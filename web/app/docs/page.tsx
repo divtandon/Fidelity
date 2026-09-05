@@ -20,6 +20,14 @@ npm run lint
 npx tsc --noEmit
 npm run build`;
 
+const reportService = `# Terminal 1 — repository root
+uvicorn api.app:app --host 127.0.0.1 --port 8000
+
+# Terminal 2 — web/.env.local (do not commit)
+FIDELITY_API_BASE_URL=http://127.0.0.1:8000
+
+# Visit /runs/latest. It remains unavailable until a computed report exists.`;
+
 const reportExample = `{
   "schema_version": "1.0.0",
   "run_id": "<caller-supplied id>",
@@ -83,6 +91,8 @@ export default function DocsPage() {
               <p className="docs-lead">No account, API key, paid dataset, or hosted service is required for the website. The repository uses npm’s lockfile for a repeatable frontend install.</p>
               <CodeBlock code={webStart} label="PowerShell or terminal" />
               <div className="docs-callout docs-callout--info"><CircleAlert size={18} /><p>The current repository includes the computation engine and a clearly labeled interface fixture. Real accuracy values appear only after you provide a trained model and evaluation data.</p></div>
+              <p className="docs-lead">To present a computed artifact, start the optional report service and set the server-only URL in <code>web/.env.local</code>. The UI validates every response and stays explicitly unavailable if the service, artifact, or contract is missing.</p>
+              <CodeBlock code={reportService} label="Optional computed-report connection" />
             </section>
 
             <section className="docs-section" id="architecture">
