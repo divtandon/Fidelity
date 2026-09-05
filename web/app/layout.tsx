@@ -29,6 +29,10 @@ export const metadata: Metadata = {
   keywords: ["model quantization", "machine learning", "statistical validation", "INT8", "PyTorch"],
   authors: [{ name: "Div Tandon" }],
   creator: "Div Tandon",
+  icons: {
+    icon: [{ url: "/fidelity-orbit-mark.png", type: "image/png" }],
+    apple: [{ url: "/fidelity-orbit-mark.png", type: "image/png" }],
+  },
   openGraph: {
     type: "website",
     title: "Fidelity — Prove the model after the transformation",
