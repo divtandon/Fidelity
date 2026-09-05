@@ -21,6 +21,13 @@ export function PerClassChart({ rows }: { rows: ClassAccuracy[] }) {
     FP32: Number((row.reference_accuracy * 100).toFixed(2)),
     INT8: Number((row.candidate_accuracy * 100).toFixed(2)),
   }));
+  const minimumAccuracy = Math.min(
+    ...chartData.flatMap((row) => [row.FP32, row.INT8]),
+  );
+  const accuracyDomainStart = Math.max(
+    0,
+    Math.floor((minimumAccuracy - 5) / 5) * 5,
+  );
   const largest = sorted[0];
 
   useEffect(() => {
@@ -71,7 +78,7 @@ export function PerClassChart({ rows }: { rows: ClassAccuracy[] }) {
               <ResponsiveContainer width="100%" height={390}>
                 <BarChart data={chartData} layout="vertical" margin={{ top: 12, right: 20, bottom: 12, left: 14 }} barGap={3}>
                   <CartesianGrid stroke="#e2e3e9" horizontal={false} />
-                  <XAxis type="number" domain={[85, 100]} tickFormatter={(value) => `${value}%`} tick={{ fill: "#696e80", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <XAxis type="number" domain={[accuracyDomainStart, 100]} tickFormatter={(value) => `${value}%`} tick={{ fill: "#696e80", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="name" width={88} tick={{ fill: "#282d49", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`]} contentStyle={{ borderRadius: 14, borderColor: "#d9dae2", fontSize: 12 }} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
