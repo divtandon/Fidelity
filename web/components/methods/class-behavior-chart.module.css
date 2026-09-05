@@ -1,0 +1,293 @@
+.chart {
+  margin: 2.5rem 0 0;
+  border: 1px solid rgb(38 47 94 / 14%);
+  border-radius: 1.7rem;
+  background:
+    radial-gradient(circle at 95% 5%, rgb(244 86 46 / 10%), transparent 28%),
+    linear-gradient(145deg, #fff, #f7f7fb);
+  box-shadow: 0 20px 60px rgb(27 35 78 / 8%);
+  padding: clamp(1.25rem, 2.1vw, 2rem);
+}
+
+.header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  border-bottom: 1px solid rgb(38 47 94 / 12%);
+  padding-bottom: 1.15rem;
+}
+
+.header > div:first-child > span,
+.reading > p,
+.readingTitle > span,
+.readingDelta > span {
+  color: #2141c4;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.header strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: #444b65;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.1rem;
+  color: #596078;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.legend i {
+  width: 0.68rem;
+  height: 0.68rem;
+  border-radius: 50%;
+}
+
+.referenceSwatch { background: #315cf5; }
+.candidateSwatch { background: #f4562e; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(30rem, 1.45fr) minmax(15rem, 0.55fr);
+  gap: clamp(1.25rem, 2.4vw, 2.5rem);
+  margin-top: 1.25rem;
+}
+
+.plot { min-width: 0; }
+
+.axis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 4.7rem 0.55rem 8.4rem;
+  color: #777d91;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.58rem;
+}
+
+.axis span:nth-child(2) { text-align: center; }
+.axis span:last-child { text-align: right; }
+
+.rows { display: grid; gap: 0.32rem; }
+
+.row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 7.4rem minmax(10rem, 1fr) 4.4rem;
+  gap: 0.9rem;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.9rem;
+  background: transparent;
+  padding: 0.55rem 0.7rem;
+  color: #151a35;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.row:hover,
+.row[data-active="true"] {
+  border-color: rgb(49 92 245 / 18%);
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 8px 22px rgb(35 45 91 / 8%);
+  transform: translateX(0.18rem);
+}
+
+.row:focus-visible {
+  outline: 3px solid rgb(49 92 245 / 27%);
+  outline-offset: 2px;
+}
+
+.rowLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowLabel small {
+  color: #7a8096;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.55rem;
+  font-weight: 600;
+}
+
+.barPair {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.barPair > i {
+  display: block;
+  height: 0.34rem;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgb(27 34 67 / 8%);
+}
+
+.barPair b {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  transition: width 220ms ease, filter 160ms ease;
+}
+
+.row:hover .barPair b,
+.row:focus-visible .barPair b,
+.row[data-active="true"] .barPair b { filter: saturate(1.16) brightness(1.04); }
+
+.referenceBar { background: linear-gradient(90deg, #87a0ff, #315cf5); }
+.candidateBar { background: linear-gradient(90deg, #ffab90, #f4562e); }
+
+.delta {
+  color: #3f465f;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.scaleNote {
+  margin: 0.8rem 0 0;
+  color: #70768b;
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.reading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  background:
+    radial-gradient(circle at 95% 5%, rgb(100 125 255 / 32%), transparent 31%),
+    #171c43;
+  color: #fff;
+  padding: 1.4rem;
+}
+
+.reading > p { margin: 0; color: #aebcf7; }
+
+.readingTitle { margin-top: 2rem; }
+.readingTitle > span { color: #9fa9cb; }
+
+.readingTitle h3 {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(2.8rem, 4vw, 4.3rem);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+}
+
+.reading dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 2rem 0 0;
+}
+
+.reading dl div {
+  min-width: 0;
+  border-top: 1px solid rgb(255 255 255 / 16%);
+  padding: 0.9rem 0;
+}
+
+.reading dl div + div {
+  border-left: 1px solid rgb(255 255 255 / 16%);
+  padding-left: 0.9rem;
+}
+
+.reading dt {
+  color: #aab3d0;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.reading dd {
+  margin: 0.38rem 0 0;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.55rem;
+}
+
+.reading dd small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #aab3d0;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.62rem;
+}
+
+.readingDelta {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+  border-top: 1px solid rgb(255 255 255 / 16%);
+  padding-top: 1rem;
+}
+
+.readingDelta > span { max-width: 8ch; color: #aab3d0; line-height: 1.5; }
+.readingDelta strong { color: #ff9a7d; font-family: var(--font-serif), Georgia, serif; font-size: 2rem; font-weight: 400; white-space: nowrap; }
+
+.readingHint {
+  display: block;
+  margin-top: 1rem;
+  color: #aeb5cc;
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: minmax(25rem, 1.3fr) minmax(13rem, 0.7fr); }
+  .row { grid-template-columns: 6.2rem minmax(8rem, 1fr) 4.2rem; gap: 0.65rem; }
+  .axis { margin-left: 7.25rem; }
+}
+
+@media (max-width: 1050px) {
+  .layout { grid-template-columns: 1fr; }
+  .reading { min-height: 19rem; }
+}
+
+@media (max-width: 780px) {
+  .header { align-items: start; flex-direction: column; gap: 1rem; }
+}
+
+@media (max-width: 540px) {
+  .chart { border-radius: 1.3rem; padding: 1rem; }
+  .axis { margin-right: 0.2rem; margin-left: 6rem; }
+  .row { grid-template-columns: 5.1rem minmax(5rem, 1fr); padding: 0.52rem 0.35rem; }
+  .rowLabel { gap: 0.4rem; font-size: 0.76rem; }
+  .delta { grid-column: 2; font-size: 0.6rem; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .barPair b { transition: none; }
+}

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Asterisk, Box, Braces, CircleAlert, Scale, Sigma } from "lucide-react";
 
+import { ClassBehaviorChart } from "@/components/methods/class-behavior-chart";
 import { Reveal } from "@/components/motion/reveal";
+import { FEATURED_RUN_ID } from "@/lib/featured-run";
+import { getVerifiedReport } from "@/lib/verified-reports";
 
 export const metadata: Metadata = {
   title: "Methods",
@@ -25,6 +28,9 @@ const thresholds = [
 ];
 
 export default function MethodsPage() {
+  const report = getVerifiedReport(FEATURED_RUN_ID);
+  if (!report) throw new Error(`Featured run ${FEATURED_RUN_ID} is not registered.`);
+
   return (
     <main id="main-content" className="subpage-main methods-page">
       <section className="subpage-hero methods-hero">
@@ -100,11 +106,12 @@ export default function MethodsPage() {
                   Correct predictions are counted inside each observed ground-truth class. Candidate minus
                   reference accuracy is reported in percentage points, then the largest absolute shifts are surfaced.
                 </p>
-                <div className="class-bars" aria-hidden="true">
-                  {[82, 69, 91, 76, 64].map((value, index) => (
-                    <div key={value}><span>Class {index + 1}</span><i style={{ "--reference": `${value}%`, "--candidate": `${value + [2, -5, 1, -8, 4][index]}%` } as React.CSSProperties} /></div>
-                  ))}
-                </div>
+                <ClassBehaviorChart
+                  candidatePrecision={report.candidate.precision}
+                  referencePrecision={report.reference.precision}
+                  rows={report.per_class}
+                  runLabel={`${report.dataset} · ${report.sample_count.toLocaleString()} paired examples`}
+                />
               </div>
             </article>
 
