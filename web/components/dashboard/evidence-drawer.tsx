@@ -5,6 +5,17 @@ import type { ValidationReport } from "@/lib/report-schema";
 
 export function EvidenceDrawer({ report }: { report: ValidationReport }) {
   const significance = report.significance;
+  const conclusion = !significance.valid
+    ? "Statistical conclusion unavailable"
+    : significance.interpretation === "no_observed_pairwise_differences"
+      ? "No paired accuracy differences observed"
+      : significance.interpretation === "statistically_detectable_candidate_decrease"
+        ? "Statistically detectable accuracy decrease"
+        : significance.interpretation === "statistically_detectable_candidate_increase"
+          ? "Statistically detectable accuracy increase"
+          : significance.interpretation === "statistically_detectable_pairwise_difference"
+            ? "Statistically detectable paired difference"
+            : "No statistically detectable accuracy change";
   return (
     <details className="evidence-drawer">
       <summary>
@@ -18,7 +29,7 @@ export function EvidenceDrawer({ report }: { report: ValidationReport }) {
           <div><dt>Decision level</dt><dd>α = {significance.alpha}</dd></div>
           <div><dt>Discordant pairs</dt><dd>{significance.n_nonzero.toLocaleString()}</dd></div>
           <div><dt>Method</dt><dd>{significance.method.replaceAll("_", " ")}</dd></div>
-          <div><dt>Conclusion</dt><dd>No statistically detectable difference</dd></div>
+          <div><dt>Conclusion</dt><dd>{conclusion}</dd></div>
         </dl>
         <div className="evidence-drawer__warning"><CircleAlert size={19} /><p><strong>Important:</strong> p ≥ α does not establish equivalence. It means this test did not detect a difference under this design and these observations.</p></div>
       </div>

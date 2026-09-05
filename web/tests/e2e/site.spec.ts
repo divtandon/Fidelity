@@ -59,7 +59,7 @@ test.describe("demo validation dashboard", () => {
     await page.goto("/runs/demo");
 
     await expect(page.getByText(/Demo data.*interface preview only/i)).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: /No significant accuracy change detected/i })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: /No statistically detectable accuracy change/i })).toBeVisible();
 
     await page.getByRole("button", { name: "View data table" }).click();
     await expect(page.getByRole("table", { name: /FP32 and INT8 accuracy by class/i })).toBeVisible();
@@ -72,5 +72,18 @@ test.describe("demo validation dashboard", () => {
     await page.getByRole("button", { name: "Download demo JSON" }).first().click();
     expect((await download).suggestedFilename()).toBe("fidelity-demo-report.json");
     expect(errors).toEqual([]);
+  });
+
+  test("never substitutes demo data when the computed report is unavailable", async ({ page }) => {
+    await page.goto("/runs/latest");
+
+    await expect(page.getByRole("heading", { level: 1, name: /Computed evidence is unavailable/i })).toBeVisible();
+    await expect(page.getByText(/will not substitute illustrative values/i)).toBeVisible();
+    await expect(page.getByText(/DEMO-1042/i)).toHaveCount(0);
+  });
+
+  test("unknown run IDs use the scoped not-found state", async ({ page }) => {
+    await page.goto("/runs/not-a-run");
+    await expect(page.getByRole("heading", { level: 1, name: /That run does not exist/i })).toBeVisible();
   });
 });
