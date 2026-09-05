@@ -69,10 +69,12 @@ test.describe("public experience", () => {
   });
 
   test("reduced motion still exposes the hero content", async ({ page }) => {
+    const errors = collectConsoleErrors(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: /Prove the model/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "View verified report", exact: true }).first()).toBeVisible();
+    expect(errors).toEqual([]);
   });
 
   test("primary calls to action lead to the verified portfolio run", async ({ page }) => {
@@ -94,6 +96,7 @@ test.describe("public experience", () => {
   });
 
   test("reduced motion reveals every animated subpage narrative", async ({ page }) => {
+    const errors = collectConsoleErrors(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
 
     for (const route of ["/product", "/methods", "/docs"]) {
@@ -104,6 +107,7 @@ test.describe("public experience", () => {
 
     await page.goto("/product");
     await expect(page.locator(".workflow-step").first()).toHaveCSS("opacity", "1");
+    expect(errors).toEqual([]);
   });
 });
 
