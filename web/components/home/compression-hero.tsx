@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowRight, BookOpen } from "lucide-react";
 import { useAnimationFrame, useMotionValue } from "motion/react";
 
+import { AccuracyMeter } from "@/components/home/accuracy-meter";
 import { CompressionVisual } from "@/components/three/compression-visual";
 import { usePrefersReducedMotion } from "@/lib/reduced-motion";
 import {
@@ -16,8 +17,9 @@ import {
 export type FeaturedRunSummary = {
   href: string;
   label: string;
-  reference: { precision: string; value: string; fillPercent: number };
-  candidate: { precision: string; value: string; fillPercent: number };
+  sampleCount: number;
+  reference: { precision: string; value: string; fillPercent: number; correctCount: number };
+  candidate: { precision: string; value: string; fillPercent: number; correctCount: number };
   delta: string;
   pValue: string;
 };
@@ -37,19 +39,7 @@ export function CompressionHero({ featuredRun }: { featuredRun: FeaturedRunSumma
   const [activeStage, setActiveStage] = useState(0);
   const reduceMotion = usePrefersReducedMotion();
   const sceneProgress = useMotionValue(COMPRESSION_PROGRESS_MIN);
-  const metrics = [
-    {
-      label: featuredRun.reference.precision,
-      value: featuredRun.reference.value,
-      tone: "blue",
-      fillPercent: featuredRun.reference.fillPercent,
-    },
-    {
-      label: featuredRun.candidate.precision,
-      value: featuredRun.candidate.value,
-      tone: "orange",
-      fillPercent: featuredRun.candidate.fillPercent,
-    },
+  const summaryMetrics = [
     { label: "Delta", value: featuredRun.delta, tone: "neutral" },
     { label: "p-value", value: featuredRun.pValue, tone: "neutral" },
   ];
@@ -116,14 +106,25 @@ export function CompressionHero({ featuredRun }: { featuredRun: FeaturedRunSumma
         <div className="proof-cluster">
           <span className="proof-label"><i /> {featuredRun.label}</span>
           <dl className="proof-strip">
-            {metrics.map((metric) => (
+            <AccuracyMeter
+              correctCount={featuredRun.reference.correctCount}
+              fillPercent={featuredRun.reference.fillPercent}
+              precision={featuredRun.reference.precision}
+              sampleCount={featuredRun.sampleCount}
+              tone="blue"
+              value={featuredRun.reference.value}
+            />
+            <AccuracyMeter
+              correctCount={featuredRun.candidate.correctCount}
+              fillPercent={featuredRun.candidate.fillPercent}
+              precision={featuredRun.candidate.precision}
+              sampleCount={featuredRun.sampleCount}
+              tone="orange"
+              value={featuredRun.candidate.value}
+            />
+            {summaryMetrics.map((metric) => (
               <div className={`proof-strip__metric proof-strip__metric--${metric.tone}`} key={metric.label}>
                 <dt>{metric.label}</dt><dd>{metric.value}</dd>
-                {metric.fillPercent === undefined ? null : (
-                  <span aria-hidden="true">
-                    <i style={{ width: `${Math.min(100, Math.max(0, metric.fillPercent))}%` }} />
-                  </span>
-                )}
               </div>
             ))}
           </dl>

@@ -58,15 +58,18 @@ export default function Home() {
   const featuredRun = {
     href: FEATURED_RUN_HREF,
     label: `Verified CIFAR-10 run · ${report.sample_count.toLocaleString()} paired examples`,
+    sampleCount: report.sample_count,
     reference: {
       precision: report.reference.precision,
       value: formatPercent(report.reference.top1_accuracy),
       fillPercent: report.reference.top1_accuracy * 100,
+      correctCount: report.reference.correct_count,
     },
     candidate: {
       precision: report.candidate.precision,
       value: formatPercent(report.candidate.top1_accuracy),
       fillPercent: report.candidate.top1_accuracy * 100,
+      correctCount: report.candidate.correct_count,
     },
     delta: formatDelta(report.accuracy_delta_pp),
     pValue: formatPValue(report.significance.p_value),

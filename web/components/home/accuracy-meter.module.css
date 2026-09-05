@@ -1,0 +1,128 @@
+.accuracyMetric {
+  isolation: isolate;
+}
+
+.accuracyMetric .meterReading {
+  overflow: visible;
+}
+
+.accuracyMeter {
+  position: relative;
+  display: block;
+  border-radius: 0.8rem;
+  cursor: help;
+  transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+.value {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accuracyMeter:focus-visible {
+  background: rgb(255 255 255 / 42%);
+  box-shadow: inset 0 0 0 1px rgb(49 92 245 / 12%);
+}
+
+.meterBar {
+  display: block;
+  width: 100%;
+  height: 0.33rem;
+  margin-top: 0.7rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(20 24 48 / 10%);
+  transition: opacity 160ms ease, transform 180ms ease;
+}
+
+.meterBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.blue .meterBar i {
+  background: linear-gradient(90deg, #8ca5ff, var(--fp32));
+}
+
+.orange .meterBar i {
+  background: linear-gradient(90deg, #ffb39a, var(--int8));
+}
+
+.disclosure {
+  position: absolute;
+  z-index: 2;
+  right: 0.55rem;
+  bottom: -1.12rem;
+  left: 0.55rem;
+  display: flex;
+  min-height: 1.35rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transform: translateY(0.25rem);
+  border: 1px solid rgb(24 29 62 / 10%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 84%);
+  box-shadow: 0 5px 14px rgb(26 31 66 / 9%);
+  color: #4d5268;
+  font-family: var(--font-mono), monospace;
+  font-size: clamp(0.5rem, 0.62vw, 0.58rem);
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity 160ms ease, transform 180ms ease;
+}
+
+.blue .disclosure {
+  color: #2545b5;
+}
+
+.orange .disclosure {
+  color: #ad351c;
+}
+
+.accuracyMeter:focus-visible .meterBar {
+  transform: translateY(-0.15rem);
+  opacity: 0;
+}
+
+.accuracyMeter:focus-visible .disclosure {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .accuracyMetric:hover .accuracyMeter {
+    background: rgb(255 255 255 / 34%);
+  }
+
+  .accuracyMetric:hover .meterBar {
+    transform: translateY(-0.15rem);
+    opacity: 0;
+  }
+
+  .accuracyMetric:hover .disclosure {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .disclosure {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accuracyMeter,
+  .meterBar,
+  .disclosure {
+    transition: none;
+  }
+}
