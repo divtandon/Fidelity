@@ -80,11 +80,11 @@ export default function ProductPage() {
 
       <section className="workflow-section" id="workflow">
         <div className="page-shell workflow-layout">
-          <aside className="workflow-aside">
+          <div className="workflow-aside">
             <p className="eyebrow"><Braces size={14} /> The pipeline</p>
             <h2>Four stages.<br />One chain of custody.</h2>
             <p>Each step preserves the context needed to understand what was measured and why the policy reached its verdict.</p>
-          </aside>
+          </div>
 
           <div className="workflow-steps">
             {stages.map((stage, index) => {

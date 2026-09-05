@@ -51,14 +51,14 @@ export default function MethodsPage() {
 
       <section className="method-body">
         <div className="page-shell method-layout">
-          <aside className="method-index">
+          <div className="method-index">
             <p>On this page</p>
             <nav aria-label="Method sections">
               {methodNav.map(([number, label, href]) => (
                 <a href={href} key={href}><span>{number}</span>{label}</a>
               ))}
             </nav>
-          </aside>
+          </div>
 
           <div className="method-chapters">
             <article className="method-chapter" id="quantization">

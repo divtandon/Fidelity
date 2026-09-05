@@ -17,6 +17,8 @@ function collectConsoleErrors(page: import("@playwright/test").Page) {
   return errors;
 }
 
+const accessibilityRoutes = ["/", "/product", "/methods", "/docs"] as const;
+
 test.describe("public experience", () => {
   for (const [route, heading] of routeHeadings) {
     test(`${route} renders its primary narrative without browser errors`, async ({ page }) => {
@@ -28,11 +30,13 @@ test.describe("public experience", () => {
     });
   }
 
-  test("documentation has no automated accessibility violations in its main content", async ({ page }) => {
-    await page.goto("/docs");
-    const results = await new AxeBuilder({ page }).include("#main-content").analyze();
-    expect(results.violations).toEqual([]);
-  });
+  for (const route of accessibilityRoutes) {
+    test(`${route} has no automated accessibility violations in its main content`, async ({ page }) => {
+      await page.goto(route);
+      const results = await new AxeBuilder({ page }).include("#main-content").analyze();
+      expect(results.violations).toEqual([]);
+    });
+  }
 
   test("the mobile menu supports keyboard navigation", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -54,6 +58,19 @@ test.describe("public experience", () => {
     await expect(page.getByRole("heading", { level: 1, name: /Prove the model/i })).toBeVisible();
     await expect(page.getByRole("link", { name: "Explore a validation", exact: true }).first()).toBeVisible();
   });
+
+  test("reduced motion reveals every animated subpage narrative", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+
+    for (const route of ["/product", "/methods", "/docs"]) {
+      await page.goto(route);
+      await expect(page.locator(".subpage-hero__copy")).toBeVisible();
+      await expect(page.locator(".subpage-hero__copy")).toHaveCSS("opacity", "1");
+    }
+
+    await page.goto("/product");
+    await expect(page.locator(".workflow-step").first()).toHaveCSS("opacity", "1");
+  });
 });
 
 test.describe("demo validation dashboard", () => {
@@ -68,6 +85,8 @@ test.describe("demo validation dashboard", () => {
     await expect(page.getByRole("table", { name: /FP32 and INT8 accuracy by class/i })).toBeVisible();
     await page.getByRole("button", { name: /Inspect cat/i }).click();
     await expect(page.getByRole("dialog", { name: "Cat" })).toBeVisible();
+    const dialogAccessibility = await new AxeBuilder({ page }).include(".class-dialog").analyze();
+    expect(dialogAccessibility.violations).toEqual([]);
     await page.getByRole("button", { name: "Close class details" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
 
