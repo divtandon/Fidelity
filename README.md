@@ -20,14 +20,39 @@ manufactures a computed result.
 | --- | --- |
 | Product site | Complete multi-route experience with responsive layouts, motion, and reduced-motion/WebGL fallbacks. |
 | Demo report | `/runs/demo` uses a tracked illustrative fixture and labels it as demo data throughout the interface and exported JSON. |
-| Computed report | `/runs/latest` requests a pipeline-produced report from the optional API. If none is available or valid, it renders an explicit unavailable state rather than demo values. |
+| Computed report | `/runs/cifar10-resnet18-int8-seed2026` serves the checked, reproducible portfolio run. `/runs/latest` remains the live optional-API boundary and fails closed when evidence is unavailable. |
 | ML pipeline | Trains or resumes a CIFAR-10 ResNet-18, performs FX static INT8 post-training quantization, evaluates both models on the same ordered test examples, and publishes a validated report. |
 | Validation boundary | Recomputes and verifies report arithmetic, paired evidence, policy output, schema, and provenance before a report is written or served. |
-| Automation | GitHub Actions runs Python quality gates, web unit/build checks, and Chromium end-to-end accessibility journeys. |
+| Automation | GitHub Actions runs Python quality gates, real CPU quantization/export tests, web unit/build checks, and Chromium, Firefox, and WebKit accessibility journeys. |
 
-The checked-in dashboard fixture is not a benchmark result. This README makes
-no accuracy or release claim about an in-progress or local run; computed
-results appear only after the executable pipeline completes successfully.
+The demo fixture remains illustrative and cannot be mistaken for computed
+evidence. The featured result below was produced by the executable pipeline,
+validated by the Python serializer, and checked in with its exact metadata and
+artifact hashes.
+
+## Verified portfolio run
+
+The tracked `cifar10-resnet18-int8-seed2026` run trained a CIFAR-adapted
+ResNet-18 for 20 epochs with seed 2026, calibrated static INT8 quantization on
+2,048 training examples, and evaluated FP32 plus the reloaded standalone INT8
+artifact on the same ordered 10,000-example held-out test split.
+
+| Evidence | Observed result |
+| --- | ---: |
+| FP32 top-1 accuracy | 92.39% (9,239 / 10,000) |
+| INT8 top-1 accuracy | 92.38% (9,238 / 10,000) |
+| Accuracy change | -0.01 percentage points |
+| Paired Wilcoxon signed-rank | p = 1.0; 39 non-zero pairs; exact permutation |
+| Mean confidence drift | 0.0004199851152058104 nats |
+| Backend policy | `ready`; no crossed guardrails |
+
+Open the [interactive verified report](http://localhost:3000/runs/cifar10-resnet18-int8-seed2026),
+or inspect the exact [report](web/lib/verified-runs/cifar10-resnet18-int8-seed2026/report.json),
+[metadata](web/lib/verified-runs/cifar10-resnet18-int8-seed2026/metadata.json),
+and [reproduction record](web/lib/verified-runs/cifar10-resnet18-int8-seed2026/README.md).
+The recorded `ready` status means only that this run stayed within its
+serialized policy thresholds. It is not proof of equivalence or a general
+model-safety certification.
 
 ## Product routes
 
@@ -40,6 +65,8 @@ results appear only after the executable pipeline completes successfully.
   setup.
 - `/runs/demo` - clearly labeled, illustrative dashboard fixture for reviewing
   the user experience without running a model.
+- `/runs/cifar10-resnet18-int8-seed2026` - bundled, pipeline-produced evidence
+  for the verified portfolio run above.
 - `/runs/latest` - latest valid computed report, or an honest unavailable state
   when the report service is not configured.
 
@@ -115,8 +142,8 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:3000>. This path needs no API key and the demo remains
-available when the Python service is not running.
+Open <http://localhost:3000>. This path needs no API key; both the verified run
+and labeled demo remain available when the Python service is not running.
 
 ## Produce a computed report
 
@@ -228,14 +255,13 @@ npm run lint
 npm run typecheck
 npm run test:coverage
 npm run build
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
-The default CI environment does not install the heavyweight PyTorch runtime, so
-its optional runtime quantization smoke test is skipped when PyTorch is absent.
-The full test executes in environments where the pipeline dependencies are
-installed.
+CI keeps fast Python validation checks separate from a focused CPU-only ML job.
+The latter installs the official CPU PyTorch wheels and executes real FX PTQ,
+TorchScript export/reload, checkpoint, and deterministic runtime contracts.
 
 ## Repository map
 

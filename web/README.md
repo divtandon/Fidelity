@@ -29,10 +29,11 @@ requires no paid API and no secret key.
 | `/methods` | Paired evaluation, drift, significance, and policy explanation |
 | `/docs` | Report contract, integrity rules, and integration instructions |
 | `/runs/demo` | Explicitly labeled illustrative dashboard fixture |
+| `/runs/cifar10-resnet18-int8-seed2026` | Bundled pipeline-produced portfolio run |
 | `/runs/latest` | Latest API-backed computed report, or an unavailable state |
 
-Only `demo` and `latest` are valid run slugs. Unknown IDs render the scoped
-not-found experience.
+The demo, latest endpoint, and explicitly registered verified runs are valid.
+Unknown IDs render the scoped not-found experience.
 
 ## Local development
 
@@ -43,8 +44,8 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:3000>. The full site and `/runs/demo` work without the
-Python service.
+Open <http://localhost:3000>. The full site, bundled verified run, and
+`/runs/demo` work without the Python service.
 
 For a production-style local run:
 
@@ -92,6 +93,9 @@ The two dashboard paths are intentionally separate:
 - `/runs/latest` can render only a contract-valid service response with
   `provenance: { kind: "computed", computed: true }`. It never substitutes the
   demo when computed evidence is unavailable.
+- `/runs/cifar10-resnet18-int8-seed2026` loads the exact checked-in report from
+  an explicit registry. Its report and metadata SHA-256 values are preserved
+  and documented beside the evidence files.
 
 The frontend schema also reconciles aggregate accuracy with canonical counts,
 checks per-class totals, validates sample counts, and rejects unknown fields.
@@ -126,8 +130,8 @@ npm run test:coverage
 # Production compilation
 npm run build
 
-# Browser journeys (install Chromium once per machine)
-npx playwright install chromium
+# Browser journeys (install engines once per machine)
+npx playwright install chromium firefox webkit
 npm run test:e2e
 ```
 
