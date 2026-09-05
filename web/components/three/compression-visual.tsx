@@ -2,9 +2,10 @@
 
 import { useRef, useSyncExternalStore, type RefObject } from "react";
 import dynamic from "next/dynamic";
-import { useInView, useReducedMotion, type MotionValue } from "motion/react";
+import { useInView, type MotionValue } from "motion/react";
 
 import { ScenePoster } from "@/components/three/scene-poster";
+import { usePrefersReducedMotion } from "@/lib/reduced-motion";
 
 const CompressionScene = dynamic(
   () => import("@/components/three/compression-scene").then((module) => module.CompressionScene),
@@ -45,7 +46,7 @@ function isPageVisible() {
 export function CompressionVisual({ progress, pointer }: CompressionVisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inView = useInView(containerRef, { margin: "200px" });
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePrefersReducedMotion();
   const supportsWebGL = useSyncExternalStore(subscribeToWebGLSupport, getWebGLSupport, () => false);
   const pageVisible = useSyncExternalStore(
     subscribeToPageVisibility,
