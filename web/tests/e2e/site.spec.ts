@@ -4,6 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 const routeHeadings = [
   ["/", /Prove the model after the transformation/i],
   ["/product", /From checkpoint to evidence/i],
+  ["/how-it-works", /From a model change to an evidence trail/i],
   ["/methods", /The method, without the marketing/i],
   ["/docs", /Reproduce the result. Inspect the contract/i],
 ] as const;
@@ -17,7 +18,7 @@ function collectConsoleErrors(page: import("@playwright/test").Page) {
   return errors;
 }
 
-const accessibilityRoutes = ["/", "/product", "/methods", "/docs"] as const;
+const accessibilityRoutes = ["/", "/product", "/how-it-works", "/methods", "/docs"] as const;
 const featuredRunId = "cifar10-resnet18-int8-seed2026";
 const featuredRunPath = `/runs/${featuredRunId}`;
 
@@ -47,11 +48,67 @@ test.describe("public experience", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("button", { name: "Close navigation" })).toBeFocused();
     await expect(page.locator("#mobile-menu")).toBeVisible();
+    await expect(page.locator("#mobile-menu").getByRole("link", { name: "How it works" })).toBeVisible();
     const docsLink = page.locator("#mobile-menu").getByRole("link", { name: "Docs" });
     await docsLink.focus();
     await expect(docsLink).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/docs$/);
+  });
+
+  test("desktop navigation and explanatory visuals never collide", async ({ page }) => {
+    const viewports = [
+      { width: 2048, height: 1152 },
+      { width: 1440, height: 900 },
+      { width: 1024, height: 768 },
+      { width: 821, height: 900 },
+    ];
+    const routes = [
+      { path: "/product", heading: ".subpage-hero h1", visual: "[aria-labelledby='pipeline-board-title']" },
+      { path: "/how-it-works", heading: "#how-title", visual: "[role='img']" },
+    ];
+
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      for (const route of routes) {
+        await page.goto(route.path);
+        const geometry = await page.evaluate(({ heading, visual }) => {
+          const rect = (selector: string) => {
+            const element = document.querySelector<HTMLElement>(selector);
+            if (!element) throw new Error(`Missing layout element: ${selector}`);
+            const bounds = element.getBoundingClientRect();
+            return { top: bounds.top, right: bounds.right, bottom: bounds.bottom, left: bounds.left };
+          };
+          const overlapArea = (first: ReturnType<typeof rect>, second: ReturnType<typeof rect>) => (
+            Math.max(0, Math.min(first.right, second.right) - Math.max(first.left, second.left))
+            * Math.max(0, Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top))
+          );
+          const navLink = document.querySelector<HTMLElement>(".site-nav a");
+          const title = document.querySelector<HTMLElement>(heading);
+          if (!navLink || !title) throw new Error("Missing desktop typography target");
+          const titleStyle = getComputedStyle(title);
+
+          return {
+            horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            wordmarkNavOverlap: overlapArea(rect(".site-header .wordmark"), rect(".site-nav")),
+            navActionOverlap: overlapArea(rect(".site-nav"), rect(".site-header__actions")),
+            headingVisualOverlap: overlapArea(rect(heading), rect(visual)),
+            navFontSize: Number.parseFloat(getComputedStyle(navLink).fontSize),
+            titleLineHeightRatio: Number.parseFloat(titleStyle.lineHeight) / Number.parseFloat(titleStyle.fontSize),
+          };
+        }, route);
+
+        const label = `${route.path} at ${viewport.width}x${viewport.height}`;
+        expect(geometry.horizontalOverflow, `${label}: horizontal overflow`).toBeLessThanOrEqual(0);
+        expect(geometry.wordmarkNavOverlap, `${label}: wordmark/navigation overlap`).toBe(0);
+        expect(geometry.navActionOverlap, `${label}: navigation/action overlap`).toBe(0);
+        expect(geometry.headingVisualOverlap, `${label}: headline/visual overlap`).toBe(0);
+        expect(geometry.navFontSize, `${label}: navigation text is too small`).toBeGreaterThanOrEqual(14);
+        if (route.path === "/product") {
+          expect(geometry.titleLineHeightRatio, `${label}: product headline lines touch`).toBeGreaterThanOrEqual(1);
+        }
+      }
+    }
   });
 
   test("the compact hero starts its live animation without scrolling", async ({ page }) => {
@@ -190,6 +247,9 @@ test.describe("public experience", () => {
     await page.goto("/product");
     await expect(page.locator(".product-hero .button--primary")).toHaveAttribute("href", featuredRunPath);
     await expect(page.locator(".next-step-card .button--paper")).toHaveAttribute("href", featuredRunPath);
+
+    await page.goto("/how-it-works");
+    await expect(page.getByRole("link", { name: "Open the real report" })).toHaveAttribute("href", featuredRunPath);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "Open navigation" }).click();
