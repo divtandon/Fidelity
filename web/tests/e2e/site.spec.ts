@@ -52,6 +52,18 @@ test.describe("public experience", () => {
     await expect(page).toHaveURL(/\/docs$/);
   });
 
+  test("the compact hero preserves a meaningful compression timeline", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    const stage = page.locator(".hero-stage-progress strong");
+
+    await expect(stage).toHaveText("Reference model");
+    await page.evaluate(() => window.scrollTo(0, 275));
+    await expect(stage).toHaveText("Quantizing to INT8");
+    await page.evaluate(() => window.scrollTo(0, 540));
+    await expect(stage).toHaveText("Validation complete");
+  });
+
   test("reduced motion still exposes the hero content", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
