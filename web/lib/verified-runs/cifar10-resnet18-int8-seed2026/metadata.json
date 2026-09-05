@@ -1,0 +1,104 @@
+{
+  "architecture": "resnet18_cifar10_v1",
+  "artifacts": {
+    "checkpoint": "fp32-checkpoint.pt",
+    "checkpoint_sha256": "d17e9d718bb83201a83ce7fceaffa80787a38d6dd899d80bd6587e60095e6b04",
+    "quantized_model": "int8-fx-static.torchscript.pt",
+    "quantized_model_sha256": "a108dbcb9111ea27d362fcecb1ad27e2a86f2ab886d2974211bf3c49acc685ae",
+    "validation_report": "validation-report.json",
+    "validation_report_sha256": "ef3a5b590238fd43dfb57f33473ac7e55706dbf9964600062b11743b6fe7b5e9"
+  },
+  "created_at": "2026-09-05T07:22:32.442965Z",
+  "dataset": {
+    "calibration_observed_order_sha256": "b95078a1cccb1cfad37b5ec388b874bda825372392b3bfa678695d0a284debaa",
+    "calibration_samples_observed": 2048,
+    "calibration_samples_selected": 2048,
+    "calibration_selection_sha256": "b95078a1cccb1cfad37b5ec388b874bda825372392b3bfa678695d0a284debaa",
+    "calibration_split": "train",
+    "classes": [
+      "airplane",
+      "automobile",
+      "bird",
+      "cat",
+      "deer",
+      "dog",
+      "frog",
+      "horse",
+      "ship",
+      "truck"
+    ],
+    "held_out_test_order_sha256": "cc3d359d93e107e6de4d989225c82d2ae2686d635cec7f2d42ddaf7c52fd256e",
+    "held_out_test_sample_count": 10000,
+    "name": "CIFAR-10",
+    "source_archive_sha256": "6d958be074577803d12ecdefd02955f39262c83c16fe9348329d7fe0b5c001ce"
+  },
+  "evaluation": {
+    "candidate_outputs_sha256": "99ffa3f325a66d33459c9469548dddadd3ad896784b27b234682d23fbefcc551",
+    "reference_outputs_sha256": "2debdcf5245860c95fc86fff92e8ae727adad1b9fcdac0480c8cfa8530a33465"
+  },
+  "execution_config": {
+    "artifacts_dir": "artifacts\\runs",
+    "calibration_samples": 2048,
+    "checkpoint_every": 1,
+    "data_dir": "data\\cifar10-hf",
+    "device": "cuda",
+    "download": false,
+    "epochs": 0,
+    "evaluation_batch_size": 512,
+    "latest_report_path": "artifacts\\latest-report.json",
+    "learning_rate": 0.1,
+    "max_calibration_batches": 8,
+    "min_learning_rate": 1e-05,
+    "momentum": 0.9,
+    "num_workers": 4,
+    "quantization_backend": "auto",
+    "resume_checkpoint": "artifacts\\runs\\cifar10-resnet18-int8-seed2026-real\\fp32-checkpoint.pt",
+    "run_id": "cifar10-resnet18-int8-seed2026",
+    "seed": 2026,
+    "train_batch_size": 128,
+    "weight_decay": 0.0005
+  },
+  "format_version": 2,
+  "kind": "fidelity_cifar10_pipeline_run",
+  "quantization": {
+    "artifact_format": "torchscript",
+    "artifact_trust": "load_trusted_artifacts_only",
+    "backend": "onednn",
+    "calibration_batches_observed": 4,
+    "calibration_samples_observed": 2048,
+    "implementation": "torch.ao.quantization.quantize_fx",
+    "mode": "fx_static_post_training_int8"
+  },
+  "reproducibility": {
+    "deterministic_algorithms": "warn_only",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "quantized_evaluation_device": "cpu",
+    "reference_evaluation_device": "cpu",
+    "seed": 2026,
+    "torch": "2.14.0+cu132",
+    "torchvision": "0.29.0+cu132",
+    "training_device": "cuda"
+  },
+  "run_id": "cifar10-resnet18-int8-seed2026",
+  "training": {
+    "checkpoint_completed_epoch": 20,
+    "checkpoint_config": {
+      "architecture": "resnet18_cifar10_v1",
+      "dataset": "CIFAR-10",
+      "learning_rate": 0.1,
+      "min_learning_rate": 1e-05,
+      "momentum": 0.9,
+      "target_epochs": 20,
+      "train_batch_size": 128,
+      "training_device": "cuda",
+      "weight_decay": 0.0005
+    },
+    "epochs_executed_this_run": 0,
+    "history_this_run": [],
+    "resume_source": {
+      "filename": "fp32-checkpoint.pt",
+      "sha256": "e8fd950547336af995aad6a727b8651caf7990bb62f90a71e06f8f4c4fc72d5e"
+    }
+  }
+}

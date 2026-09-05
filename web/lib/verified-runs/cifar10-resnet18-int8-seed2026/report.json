@@ -1,0 +1,164 @@
+{
+  "accuracy_delta_pp": -0.01,
+  "candidate": {
+    "correct_count": 9238,
+    "precision": "INT8",
+    "top1_accuracy": 0.9238
+  },
+  "confidence_drift": {
+    "direction": "reference_to_candidate",
+    "epsilon": 1e-12,
+    "metric": "kl_divergence",
+    "sample_count": 10000,
+    "unit": "nats",
+    "value": 0.0004199851152058104
+  },
+  "created_at": "2026-09-05T07:22:32.442965Z",
+  "dataset": "CIFAR-10 test split",
+  "model": "ResNet-18 adapted for CIFAR-10 (32x32)",
+  "per_class": [
+    {
+      "candidate_accuracy": 0.933,
+      "candidate_correct": 933,
+      "class_id": 0,
+      "class_name": "airplane",
+      "delta_pp": 0.0,
+      "reference_accuracy": 0.933,
+      "reference_correct": 933,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.969,
+      "candidate_correct": 969,
+      "class_id": 1,
+      "class_name": "automobile",
+      "delta_pp": 0.1,
+      "reference_accuracy": 0.968,
+      "reference_correct": 968,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.9,
+      "candidate_correct": 900,
+      "class_id": 2,
+      "class_name": "bird",
+      "delta_pp": -0.1,
+      "reference_accuracy": 0.901,
+      "reference_correct": 901,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.829,
+      "candidate_correct": 829,
+      "class_id": 3,
+      "class_name": "cat",
+      "delta_pp": 0.9,
+      "reference_accuracy": 0.82,
+      "reference_correct": 820,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.936,
+      "candidate_correct": 936,
+      "class_id": 4,
+      "class_name": "deer",
+      "delta_pp": 0.0,
+      "reference_accuracy": 0.936,
+      "reference_correct": 936,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.884,
+      "candidate_correct": 884,
+      "class_id": 5,
+      "class_name": "dog",
+      "delta_pp": -0.3,
+      "reference_accuracy": 0.887,
+      "reference_correct": 887,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.939,
+      "candidate_correct": 939,
+      "class_id": 6,
+      "class_name": "frog",
+      "delta_pp": -0.3,
+      "reference_accuracy": 0.942,
+      "reference_correct": 942,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.927,
+      "candidate_correct": 927,
+      "class_id": 7,
+      "class_name": "horse",
+      "delta_pp": -0.2,
+      "reference_accuracy": 0.929,
+      "reference_correct": 929,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.968,
+      "candidate_correct": 968,
+      "class_id": 8,
+      "class_name": "ship",
+      "delta_pp": -0.1,
+      "reference_accuracy": 0.969,
+      "reference_correct": 969,
+      "sample_count": 1000
+    },
+    {
+      "candidate_accuracy": 0.953,
+      "candidate_correct": 953,
+      "class_id": 9,
+      "class_name": "truck",
+      "delta_pp": -0.1,
+      "reference_accuracy": 0.954,
+      "reference_correct": 954,
+      "sample_count": 1000
+    }
+  ],
+  "provenance": {
+    "computed": true,
+    "kind": "computed"
+  },
+  "reference": {
+    "correct_count": 9239,
+    "precision": "FP32",
+    "top1_accuracy": 0.9239
+  },
+  "run_id": "cifar10-resnet18-int8-seed2026",
+  "sample_count": 10000,
+  "schema_version": "1.0.0",
+  "significance": {
+    "alpha": 0.05,
+    "alternative": "two-sided",
+    "interpretation": "no_statistically_detectable_difference",
+    "is_significant": false,
+    "median_difference": 0.0,
+    "method": "exact_permutation",
+    "n_nonzero": 39,
+    "n_pairs": 10000,
+    "note": null,
+    "p_value": 1.0,
+    "statistic": 380.0,
+    "test": "wilcoxon_signed_rank",
+    "valid": true
+  },
+  "verdict": {
+    "policy": {
+      "alpha": 0.05,
+      "block_accuracy_drop_pp": 2.0,
+      "block_class_drop_pp": 10.0,
+      "block_confidence_kl": 0.1,
+      "minimum_class_samples": 1,
+      "name": "fidelity_default",
+      "review_accuracy_drop_pp": 0.5,
+      "review_class_drop_pp": 2.0,
+      "review_confidence_kl": 0.02,
+      "version": "1.0.0"
+    },
+    "reasons": [],
+    "status": "ready"
+  }
+}
