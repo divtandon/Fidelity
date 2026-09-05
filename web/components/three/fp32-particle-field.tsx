@@ -71,7 +71,7 @@ export function FP32ParticleField({ progress, pointer }: FP32ParticleFieldProps)
   const pointsRef = useRef<THREE.Points>(null);
   const viewportWidth = useThree((state) => state.size.width);
   const pixelRatio = useThree((state) => state.viewport.dpr);
-  const particleCount = viewportWidth < 700 ? 2400 : 6800;
+  const particleCount = viewportWidth <= 820 ? 2400 : 6800;
   const data = useMemo(() => createCompressionParticleData(particleCount), [particleCount]);
   const geometry = useMemo(() => {
     const nextGeometry = new THREE.BufferGeometry();

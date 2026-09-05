@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, BookOpen } from "lucide-react";
 import { useMotionValueEvent, useScroll } from "motion/react";
@@ -22,30 +22,13 @@ const stages = [
   "Validation complete",
 ];
 
-const compactHeroQuery = "(max-width: 820px)";
-
-function subscribeToCompactHero(callback: () => void) {
-  const media = window.matchMedia(compactHeroQuery);
-  media.addEventListener("change", callback);
-  return () => media.removeEventListener("change", callback);
-}
-
-function isCompactHero() {
-  return window.matchMedia(compactHeroQuery).matches;
-}
-
 export function CompressionHero() {
   const heroRef = useRef<HTMLElement>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
   const [activeStage, setActiveStage] = useState(0);
-  const compactHero = useSyncExternalStore(
-    subscribeToCompactHero,
-    isCompactHero,
-    () => false,
-  );
   const { scrollYProgress } = useScroll({
     target: heroRef,
-    offset: compactHero ? ["start start", "end 50%"] : ["start start", "end end"],
+    offset: ["start start", "end end"],
   });
 
   useMotionValueEvent(scrollYProgress, "change", (value) => {

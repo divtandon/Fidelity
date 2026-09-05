@@ -25,9 +25,9 @@ export function CodeBlock({ code, label }: CodeBlockProps) {
     <div className="code-block">
       <div className="code-block__top">
         <span>{label}</span>
-        <button type="button" onClick={copyCode} aria-label={`Copy ${label}`}>
+        <button type="button" onClick={copyCode} aria-label={`${copied ? "Copied" : "Copy"} ${label}`}>
           {copied ? <Check size={14} /> : <Copy size={14} />}
-          {copied ? "Copied" : "Copy"}
+          <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
         </button>
       </div>
       <pre tabIndex={0}><code>{code}</code></pre>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, type ReactNode, type RefObject, Suspense, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { MotionValue } from "motion/react";
 import * as THREE from "three";
 
@@ -16,6 +16,9 @@ type CompressionSceneProps = {
 
 function CompressionRig({ progress, pointer }: CompressionSceneProps) {
   const rigRef = useRef<THREE.Group>(null);
+  const { width, height } = useThree((state) => state.size);
+  const sceneScale = Math.min(1.02, Math.max(0.3, (width / height) * 0.72));
+  const sceneX = sceneScale < 0.75 ? 0.05 : 0.65;
   useFrame(() => {
     if (!rigRef.current) return;
     rigRef.current.rotation.y += (pointer.current.x * 0.045 - rigRef.current.rotation.y) * 0.025;
@@ -23,7 +26,7 @@ function CompressionRig({ progress, pointer }: CompressionSceneProps) {
   });
 
   return (
-    <group ref={rigRef} position={[0.65, 0.12, 0]} scale={1.02}>
+    <group ref={rigRef} position={[sceneX, 0.12, 0]} scale={sceneScale}>
       <FP32ParticleField progress={progress} pointer={pointer} />
       <CompressionAperture progress={progress} />
       <INT8VoxelModel progress={progress} />

@@ -302,7 +302,8 @@ img, svg { display: block; }
 .product-instrument__source i:nth-of-type(2) { width: 88%; height: 38%; transform: rotate(48deg); animation-direction: reverse; }
 .product-instrument__source i:nth-of-type(3) { width: 42%; height: 90%; transform: rotate(-25deg); animation-duration: 8s; }
 .product-instrument__beam { position: absolute; top: 45%; left: 24%; width: 42%; height: 2px; background: linear-gradient(90deg,var(--fp32),#8f84d2,var(--int8)); box-shadow: 0 0 18px rgba(85,90,255,.65); }
-.product-instrument__beam i { position: absolute; top: 50%; width: .38rem; height: .38rem; transform: translateY(-50%); border-radius: 50%; background: white; box-shadow: 0 0 12px var(--fp32); animation: beam-particle 2.2s ease-in-out infinite; }
+.product-instrument__beam i { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; transform: translate3d(-100%,-50%,0); animation: beam-particle 2.2s ease-in-out infinite; }
+.product-instrument__beam i::after { position: absolute; top: 50%; right: -.19rem; width: .38rem; height: .38rem; transform: translateY(-50%); border-radius: 50%; background: white; box-shadow: 0 0 12px var(--fp32); content: ""; }
 .product-instrument__beam i:nth-child(2) { animation-delay: -.45s; }.product-instrument__beam i:nth-child(3) { animation-delay: -.9s; }.product-instrument__beam i:nth-child(4) { animation-delay: -1.35s; }.product-instrument__beam i:nth-child(5) { animation-delay: -1.8s; }
 .product-instrument__aperture { position: absolute; z-index: 2; top: 28%; left: 54%; width: 5.4rem; height: 11rem; }
 .product-instrument__aperture i { position: absolute; inset: 0; border: .55rem solid #b9a9a8; border-radius: 50%; box-shadow: inset 5px 0 9px #fff,8px 0 16px rgba(53,49,84,.24); animation: aperture-breathe 3.2s ease-in-out infinite; }
@@ -314,7 +315,7 @@ img, svg { display: block; }
 .product-instrument__label::before { display: block; width: 1px; height: 3rem; margin-bottom: .4rem; background: currentColor; content: ""; opacity: .45; }
 .product-instrument__label--a { top: 6%; left: 14%; }.product-instrument__label--b { top: 7%; left: 57%; }.product-instrument__label--c { top: 14%; right: 1%; }
 @keyframes orbit-ring { to { rotate: 1turn; } }
-@keyframes beam-particle { from { left: 0; opacity: 0; } 20%,80% { opacity: 1; } to { left: 100%; opacity: 0; } }
+@keyframes beam-particle { from { transform: translate3d(-100%,-50%,0); opacity: 0; } 20%,80% { opacity: 1; } to { transform: translate3d(0,-50%,0); opacity: 0; } }
 @keyframes aperture-breathe { 50% { transform: scale(.94); filter: brightness(1.18); } }
 @keyframes voxel-pulse { to { transform: translateZ(10px) scale(.9); filter: brightness(1.12); } }
 .workflow-section { padding: clamp(6rem,10vw,10rem) 0; background: var(--surface); }
@@ -524,13 +525,13 @@ img, svg { display: block; }
   .mobile-nav--open { transform: translateY(0) scale(1); visibility: visible; opacity: 1; pointer-events: auto; }
   .mobile-nav a { display: flex; align-items: center; justify-content: space-between; border-radius: 1rem; padding: .9rem 1rem; font-weight: 700; }
   .mobile-nav a:hover { background: var(--surface-soft); }
-  .hero { height: auto; min-height: 900px; overflow: hidden; }
-  .hero__stage { position: relative; height: auto; min-height: 900px; border-width: 3px; }
+  .hero { height: calc(100svh + 32rem); min-height: 0; overflow: clip; }
+  .hero__stage { position: sticky; top: 0; height: 100svh; min-height: 900px; border-width: 3px; }
   .hero__content { min-height: 900px; align-content: start; padding-top: 9.5rem; }
   .hero__copy { width: min(100%,38rem); }
   .hero h1 { font-size: clamp(3.2rem,10vw,5.3rem); }
   .hero__lead { max-width: 34rem; }
-  .hero__visual img { object-position: 63% center; }
+  .hero__visual img { object-fit: contain; object-position: center; }
   .hero__wash { background: linear-gradient(180deg,rgba(250,247,244,.98) 0%,rgba(250,247,244,.8) 43%,rgba(250,247,244,.02) 67%,rgba(244,236,238,.88) 100%); }
   .hero-annotation--reference, .hero-annotation--aperture, .hero-annotation--candidate { display: none; }
   .proof-cluster { right: 1rem; bottom: 4.3rem; left: 1rem; width: auto; }
@@ -549,7 +550,7 @@ img, svg { display: block; }
 }
 
 @media (max-width: 560px) {
-  .hero { min-height: 940px; }
+  .hero { min-height: 0; }
   .hero__stage { min-height: 940px; border-width: 2px; }
   .hero__content { min-height: 940px; padding-top: 8.5rem; }
   .hero h1 { font-size: clamp(3rem,15vw,4.5rem); }

@@ -47,7 +47,7 @@ export function INT8VoxelModel({ progress }: INT8VoxelModelProps) {
     <group ref={groupRef} position={[3.2, 0, 0]} scale={0.08}>
       <instancedMesh ref={meshRef} args={[undefined, undefined, COUNT]}>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
-        <meshPhysicalMaterial color="#ff532d" emissive="#ff3815" emissiveIntensity={0.33} metalness={0.2} roughness={0.2} transmission={0.08} clearcoat={1} />
+        <meshPhysicalMaterial color="#ff532d" emissive="#ff3815" emissiveIntensity={0.33} metalness={0.2} roughness={0.2} clearcoat={1} />
       </instancedMesh>
       <mesh>
         <boxGeometry args={[1.45, 1.45, 1.45]} />
