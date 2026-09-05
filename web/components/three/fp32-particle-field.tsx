@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { MotionValue } from "motion/react";
 import * as THREE from "three";
@@ -63,9 +63,10 @@ const fragmentShader = `
 
 type FP32ParticleFieldProps = {
   progress: MotionValue<number>;
+  pointer: RefObject<{ x: number; y: number }>;
 };
 
-export function FP32ParticleField({ progress }: FP32ParticleFieldProps) {
+export function FP32ParticleField({ progress, pointer }: FP32ParticleFieldProps) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const pointsRef = useRef<THREE.Points>(null);
   const viewportWidth = useThree((state) => state.size.width);
@@ -84,15 +85,15 @@ export function FP32ParticleField({ progress }: FP32ParticleFieldProps) {
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  useFrame(({ clock, pointer }) => {
+  useFrame(({ clock }) => {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = clock.elapsedTime;
       materialRef.current.uniforms.uProgress.value = progress.get();
       materialRef.current.uniforms.uPixelRatio.value = Math.min(pixelRatio, 1.5);
     }
     if (pointsRef.current) {
-      pointsRef.current.rotation.y += (pointer.x * 0.055 - pointsRef.current.rotation.y) * 0.025;
-      pointsRef.current.rotation.x += (-pointer.y * 0.035 - pointsRef.current.rotation.x) * 0.025;
+      pointsRef.current.rotation.y += (pointer.current.x * 0.055 - pointsRef.current.rotation.y) * 0.025;
+      pointsRef.current.rotation.x += (-pointer.current.y * 0.035 - pointsRef.current.rotation.x) * 0.025;
     }
   });
 

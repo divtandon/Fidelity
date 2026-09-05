@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { useInView, useReducedMotion, type MotionValue } from "motion/react";
 
@@ -13,6 +13,7 @@ const CompressionScene = dynamic(
 
 type CompressionVisualProps = {
   progress: MotionValue<number>;
+  pointer: RefObject<{ x: number; y: number }>;
 };
 
 let cachedWebGLSupport: boolean | undefined;
@@ -32,17 +33,31 @@ function subscribeToWebGLSupport() {
   return () => undefined;
 }
 
-export function CompressionVisual({ progress }: CompressionVisualProps) {
+function subscribeToPageVisibility(callback: () => void) {
+  document.addEventListener("visibilitychange", callback);
+  return () => document.removeEventListener("visibilitychange", callback);
+}
+
+function isPageVisible() {
+  return document.visibilityState !== "hidden";
+}
+
+export function CompressionVisual({ progress, pointer }: CompressionVisualProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inView = useInView(containerRef, { margin: "200px" });
   const reduceMotion = useReducedMotion();
   const supportsWebGL = useSyncExternalStore(subscribeToWebGLSupport, getWebGLSupport, () => false);
-  const showLiveScene = !reduceMotion && inView && supportsWebGL;
+  const pageVisible = useSyncExternalStore(
+    subscribeToPageVisibility,
+    isPageVisible,
+    () => false,
+  );
+  const showLiveScene = !reduceMotion && inView && supportsWebGL && pageVisible;
 
   return (
     <div className={`compression-visual${showLiveScene ? " compression-visual--live" : ""}`} ref={containerRef} aria-hidden="true">
       <ScenePoster />
-      {showLiveScene ? <CompressionScene progress={progress} /> : null}
+      {showLiveScene ? <CompressionScene progress={progress} pointer={pointer} /> : null}
     </div>
   );
 }

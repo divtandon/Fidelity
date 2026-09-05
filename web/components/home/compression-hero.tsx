@@ -36,6 +36,7 @@ function isCompactHero() {
 
 export function CompressionHero() {
   const heroRef = useRef<HTMLElement>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
   const [activeStage, setActiveStage] = useState(0);
   const compactHero = useSyncExternalStore(
     subscribeToCompactHero,
@@ -53,10 +54,22 @@ export function CompressionHero() {
   });
 
   return (
-    <section className="hero" aria-labelledby="hero-title" ref={heroRef}>
+    <section
+      className="hero"
+      aria-labelledby="hero-title"
+      ref={heroRef}
+      onPointerMove={(event) => {
+        pointerRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
+        pointerRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      }}
+      onPointerLeave={() => {
+        pointerRef.current.x = 0;
+        pointerRef.current.y = 0;
+      }}
+    >
       <div className="hero__stage">
       <div className="hero__visual" aria-hidden="true">
-        <CompressionVisual progress={scrollYProgress} />
+        <CompressionVisual progress={scrollYProgress} pointer={pointerRef} />
         <div className="hero__wash" />
       </div>
       <div className="hero-annotation hero-annotation--reference" aria-hidden="true"><i /><span>FP32</span><small>Reference model<br />high precision</small></div>
