@@ -208,6 +208,7 @@ class PipelineContractTests(unittest.TestCase):
             result = run_pipeline(
                 PipelineConfig(
                     artifacts_dir=Path(temporary),
+                    latest_report_path=Path(temporary) / "latest-report.json",
                     run_id="paired-output-test",
                     resume_checkpoint=Path(temporary) / "existing.pt",
                     epochs=0,
@@ -223,6 +224,10 @@ class PipelineContractTests(unittest.TestCase):
         self.assertEqual(result.sample_count, 2)
         self.assertAlmostEqual(result.reference_accuracy, 1.0)
         self.assertAlmostEqual(result.candidate_accuracy, 0.5)
+        self.assertEqual(
+            result.latest_report_path,
+            (Path(temporary) / "latest-report.json").resolve(),
+        )
 
 
 if __name__ == "__main__":

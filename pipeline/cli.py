@@ -41,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-dir", type=Path, default=Path("data/cifar10"))
     parser.add_argument("--artifacts-dir", type=Path, default=Path("artifacts/runs"))
     parser.add_argument(
+        "--latest-report-path",
+        type=Path,
+        default=Path("artifacts/latest-report.json"),
+        help="Stable computed-report path consumed by the optional API.",
+    )
+    parser.add_argument(
         "--run-id",
         help="Optional stable artifact directory name (letters, numbers, ., _, -).",
     )
@@ -82,6 +88,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     config = PipelineConfig(
         data_dir=arguments.data_dir,
         artifacts_dir=arguments.artifacts_dir,
+        latest_report_path=arguments.latest_report_path,
         run_id=arguments.run_id,
         resume_checkpoint=arguments.resume_checkpoint,
         epochs=arguments.epochs,
@@ -108,6 +115,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(
         "Completed computed evidence run "
         f"{result.run_id}: FP32 {result.reference_accuracy:.6%}; "
-        f"INT8 {result.candidate_accuracy:.6%}; report {result.report_path}"
+        f"INT8 {result.candidate_accuracy:.6%}; report {result.latest_report_path}"
     )
     return 0

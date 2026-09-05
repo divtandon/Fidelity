@@ -45,6 +45,7 @@ class PipelineConfig:
 
     data_dir: Path = Path("data/cifar10")
     artifacts_dir: Path = Path("artifacts/runs")
+    latest_report_path: Path = Path("artifacts/latest-report.json")
     run_id: str | None = None
     resume_checkpoint: Path | None = None
     epochs: int = 20
@@ -108,6 +109,7 @@ class PipelineResult:
     quantized_model_path: Path
     report_path: Path
     metadata_path: Path
+    latest_report_path: Path
     reference_accuracy: float
     candidate_accuracy: float
     sample_count: int
@@ -228,7 +230,12 @@ def atomic_json_write(payload: Mapping[str, Any], output_path: Path) -> Path:
 
 def _config_record(config: PipelineConfig) -> dict[str, Any]:
     record = asdict(config)
-    for field in ("data_dir", "artifacts_dir", "resume_checkpoint"):
+    for field in (
+        "data_dir",
+        "artifacts_dir",
+        "latest_report_path",
+        "resume_checkpoint",
+    ):
         if record[field] is not None:
             record[field] = str(record[field])
     return record
@@ -590,6 +597,9 @@ def run_pipeline(
             ),
             run_dir / "metadata.json",
         )
+        # Publish only after the complete run record exists. The API reads this
+        # stable path and independently validates it before serving evidence.
+        latest_report_path = write_report(report, config.latest_report_path)
     except BaseException:
         # Keep partial artifacts for inspection but never label a failed run as
         # completed by writing a report/metadata pair after an exception.
@@ -603,6 +613,7 @@ def run_pipeline(
         quantized_model_path=quantized_model_path,
         report_path=report_path,
         metadata_path=metadata_path,
+        latest_report_path=latest_report_path,
         reference_accuracy=reference_outputs.top1_accuracy,
         candidate_accuracy=candidate_outputs.top1_accuracy,
         sample_count=reference_outputs.sample_count,
