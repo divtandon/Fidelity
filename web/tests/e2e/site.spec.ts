@@ -41,7 +41,10 @@ test.describe("public experience", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("button", { name: "Close navigation" })).toBeFocused();
     await expect(page.locator("#mobile-menu")).toBeVisible();
-    await page.locator("#mobile-menu").getByRole("link", { name: "Docs" }).click();
+    const docsLink = page.locator("#mobile-menu").getByRole("link", { name: "Docs" });
+    await docsLink.focus();
+    await expect(docsLink).toBeFocused();
+    await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/docs$/);
   });
 

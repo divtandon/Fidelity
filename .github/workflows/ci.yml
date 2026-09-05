@@ -73,9 +73,9 @@ jobs:
           retention-days: 7
 
   browser:
-    name: Browser checks (Chromium)
+    name: Browser checks (Chromium, Firefox, WebKit)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: web
@@ -93,8 +93,8 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
-      - name: Install Chromium and system dependencies
-        run: npx playwright install --with-deps chromium
+      - name: Install browsers and system dependencies
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: Run browser checks
         run: npm run test:e2e
       - name: Upload browser diagnostics
