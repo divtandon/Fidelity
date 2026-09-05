@@ -57,7 +57,7 @@ export default function Home() {
 
   const featuredRun = {
     href: FEATURED_RUN_HREF,
-    label: `Verified pipeline run · ${report.sample_count.toLocaleString()} paired examples`,
+    label: `Verified CIFAR-10 run · ${report.sample_count.toLocaleString()} paired examples`,
     reference: {
       precision: report.reference.precision,
       value: formatPercent(report.reference.top1_accuracy),
