@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .confidence_drift import ConfidenceDriftResult, mean_kl_divergence
@@ -121,11 +121,7 @@ def _utc_timestamp(value: str | datetime) -> str:
         raise TypeError("created_at must be an ISO-8601 string or datetime")
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError("created_at must include a timezone")
-    return (
-        parsed.astimezone(timezone.utc)
-        .isoformat(timespec="auto")
-        .replace("+00:00", "Z")
-    )
+    return parsed.astimezone(UTC).isoformat(timespec="auto").replace("+00:00", "Z")
 
 
 def _labels(values: Iterable[int], name: str) -> list[int]:

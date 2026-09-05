@@ -112,10 +112,7 @@ def _require_torch() -> Any:
 
 
 def _as_positional_inputs(value: Any, *, context: str) -> tuple[Any, ...]:
-    if isinstance(value, tuple):
-        result = value
-    else:
-        result = (value,)
+    result = value if isinstance(value, tuple) else (value,)
     if not result:
         raise ValueError(f"{context} produced no model inputs")
     return result

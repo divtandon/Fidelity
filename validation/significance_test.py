@@ -115,7 +115,7 @@ def _exact_p_value(
             for rank_sum, count in counts.items()
             if min(rank_sum, total_rank - rank_sum) <= observed_statistic
         )
-    return min(1.0, extreme / permutations)
+    return float(min(1.0, extreme / permutations))
 
 
 def _binomial_range_count(n: int, minimum: int, maximum: int) -> int:

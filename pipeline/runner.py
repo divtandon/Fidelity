@@ -13,7 +13,7 @@ import tempfile
 from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -335,9 +335,7 @@ def _metadata(
         "format_version": 1,
         "kind": "fidelity_cifar10_pipeline_run",
         "run_id": run_id,
-        "created_at": created_at.astimezone(timezone.utc)
-        .isoformat()
-        .replace("+00:00", "Z"),
+        "created_at": created_at.astimezone(UTC).isoformat().replace("+00:00", "Z"),
         "architecture": ARCHITECTURE_ID,
         "dataset": {
             "name": "CIFAR-10",
@@ -395,7 +393,7 @@ def run_pipeline(
     seed_everything(config.seed)
     training_device = resolve_training_device(config.device)
     backend = choose_quantization_backend(config.quantization_backend)
-    created_at = datetime.now(timezone.utc)
+    created_at = datetime.now(UTC)
     run_id = config.run_id or _utc_run_id(created_at)
     run_dir = (Path(config.artifacts_dir).expanduser().resolve() / run_id).resolve()
     # This check makes a malicious-looking run id harmless even if Config is
