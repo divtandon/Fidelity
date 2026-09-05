@@ -13,6 +13,7 @@ from api.app import (
     REPOSITORY_ROOT,
     SERVICE_UNAVAILABLE_DETAIL,
     FastAPI,
+    SignificanceResponse,
     _configured_report_path,
     create_app,
 )
@@ -39,6 +40,16 @@ def api_report():
     "FastAPI test dependencies are optional",
 )
 class ApiTests(unittest.IsolatedAsyncioTestCase):
+    def test_response_contract_accepts_every_valid_significance_method(self) -> None:
+        significance = api_report().to_dict()["significance"]
+        for method in (
+            "exact_permutation",
+            "normal_approximation",
+            "not_applicable",
+        ):
+            with self.subTest(method=method):
+                SignificanceResponse.model_validate({**significance, "method": method})
+
     async def test_reports_absence_then_serves_serialized_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report_path = Path(directory) / "latest-report.json"

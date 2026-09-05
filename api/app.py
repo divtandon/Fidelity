@@ -55,7 +55,7 @@ class SignificanceResponse(BaseModel):
     p_value: float
     n_pairs: int
     n_nonzero: int
-    method: Literal["exact_permutation", "not_applicable"]
+    method: Literal["exact_permutation", "normal_approximation", "not_applicable"]
     alternative: Literal["two-sided"]
     valid: bool
     median_difference: float
