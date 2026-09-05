@@ -220,6 +220,33 @@ test.describe("public experience", () => {
     }
   });
 
+  test("the hero accuracy meters disclose exact paired counts", async ({ page }) => {
+    await page.goto("/");
+
+    const referenceMeter = page.getByRole("meter", { name: "FP32 top-1 accuracy" });
+    const candidateMeter = page.getByRole("meter", { name: "INT8 top-1 accuracy" });
+    await expect(referenceMeter).toHaveAttribute("aria-valuenow", "92.39");
+    await expect(referenceMeter).toHaveAttribute(
+      "aria-valuetext",
+      "92.39%; 9,239 correct out of 10,000 held-out examples",
+    );
+    await expect(candidateMeter).toHaveAttribute("aria-valuenow", "92.38");
+    await expect(candidateMeter).toHaveAttribute(
+      "aria-valuetext",
+      "92.38%; 9,238 correct out of 10,000 held-out examples",
+    );
+
+    await referenceMeter.hover();
+    await expect(referenceMeter.locator("[data-meter-disclosure]")).toHaveCSS("opacity", "1");
+    await page.mouse.move(0, 0);
+    await referenceMeter.focus();
+    await expect(referenceMeter).toBeFocused();
+    await expect(referenceMeter.locator("[data-meter-disclosure]")).toHaveCSS("opacity", "1");
+    await page.keyboard.press("Tab");
+    await expect(candidateMeter).toBeFocused();
+    await expect(candidateMeter.locator("[data-meter-disclosure]")).toHaveCSS("opacity", "1");
+  });
+
   test("reduced motion still exposes the hero content", async ({ page }) => {
     const errors = collectConsoleErrors(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
