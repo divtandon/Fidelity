@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Boxes, Braces, Database, FileCheck2, Gauge, ScanSearch } from "lucide-react";
 
 import { Reveal } from "@/components/motion/reveal";
+import { FEATURED_RUN_HREF } from "@/lib/featured-run";
 
 export const metadata: Metadata = {
   title: "Product",
@@ -59,7 +60,7 @@ export default function ProductPage() {
               the result into an inspectable validation report.
             </p>
             <div className="hero__actions">
-              <Link className="button button--primary" href="/runs/demo">Open the demo report <ArrowRight size={17} /></Link>
+              <Link className="button button--primary" href={FEATURED_RUN_HREF}>View verified report <ArrowRight size={17} /></Link>
               <a className="button button--quiet" href="#workflow">Follow the workflow</a>
             </div>
           </Reveal>
@@ -150,7 +151,7 @@ export default function ProductPage() {
         <div className="page-shell next-step-card">
           <span className="next-step-card__number">01 / 02</span>
           <div><p className="eyebrow eyebrow--light">Next: inspect the evidence</p><h2>The workflow ends where the review begins.</h2></div>
-          <Link className="button button--paper" href="/runs/demo">Explore a validation <ArrowRight size={17} /></Link>
+          <Link className="button button--paper" href={FEATURED_RUN_HREF}>View verified report <ArrowRight size={17} /></Link>
         </div>
       </section>
     </main>

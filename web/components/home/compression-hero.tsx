@@ -7,12 +7,14 @@ import { useMotionValueEvent, useScroll } from "motion/react";
 
 import { CompressionVisual } from "@/components/three/compression-visual";
 
-const metrics = [
-  { label: "FP32", value: "94.82%", tone: "blue" },
-  { label: "INT8", value: "94.47%", tone: "orange" },
-  { label: "Delta", value: "−0.35 pp", tone: "neutral" },
-  { label: "p-value", value: "0.184", tone: "neutral" },
-];
+export type FeaturedRunSummary = {
+  href: string;
+  label: string;
+  reference: { precision: string; value: string; fillPercent: number };
+  candidate: { precision: string; value: string; fillPercent: number };
+  delta: string;
+  pValue: string;
+};
 
 const stages = [
   "Reference model",
@@ -22,10 +24,26 @@ const stages = [
   "Validation complete",
 ];
 
-export function CompressionHero() {
+export function CompressionHero({ featuredRun }: { featuredRun: FeaturedRunSummary }) {
   const heroRef = useRef<HTMLElement>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
   const [activeStage, setActiveStage] = useState(0);
+  const metrics = [
+    {
+      label: featuredRun.reference.precision,
+      value: featuredRun.reference.value,
+      tone: "blue",
+      fillPercent: featuredRun.reference.fillPercent,
+    },
+    {
+      label: featuredRun.candidate.precision,
+      value: featuredRun.candidate.value,
+      tone: "orange",
+      fillPercent: featuredRun.candidate.fillPercent,
+    },
+    { label: "Delta", value: featuredRun.delta, tone: "neutral" },
+    { label: "p-value", value: featuredRun.pValue, tone: "neutral" },
+  ];
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end end"],
@@ -68,17 +86,22 @@ export function CompressionHero() {
             class behavior, prediction drift, and statistical significance.
           </p>
           <div className="hero__actions">
-            <Link className="button button--primary" href="/runs/demo">Explore a validation <ArrowRight size={17} /></Link>
+            <Link className="button button--primary" href={featuredRun.href}>View verified report <ArrowRight size={17} /></Link>
             <Link className="button button--quiet" href="/methods"><BookOpen size={16} /> Read the method</Link>
           </div>
         </div>
 
         <div className="proof-cluster">
-          <span className="demo-label"><i /> Illustrative UI fixture</span>
+          <span className="proof-label"><i /> {featuredRun.label}</span>
           <dl className="proof-strip">
             {metrics.map((metric) => (
               <div className={`proof-strip__metric proof-strip__metric--${metric.tone}`} key={metric.label}>
-                <dt>{metric.label}</dt><dd>{metric.value}</dd><span aria-hidden="true"><i /></span>
+                <dt>{metric.label}</dt><dd>{metric.value}</dd>
+                {metric.fillPercent === undefined ? null : (
+                  <span aria-hidden="true">
+                    <i style={{ width: `${Math.min(100, Math.max(0, metric.fillPercent))}%` }} />
+                  </span>
+                )}
               </div>
             ))}
           </dl>

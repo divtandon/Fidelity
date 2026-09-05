@@ -147,12 +147,12 @@ img, svg { display: block; }
 .button--ghost-light { border-color: rgba(255,255,255,.24); color: white; }
 
 .proof-cluster { position: absolute; right: clamp(1rem,7vw,8rem); bottom: 3.8rem; width: min(52rem,58vw); }
-.demo-label {
+.proof-label {
   display: flex; width: max-content; align-items: center; gap: .45rem; margin: 0 1.2rem .6rem auto;
   color: #4e5367; font-family: var(--font-mono), monospace; font-size: .58rem; font-weight: 500;
   letter-spacing: .14em; text-transform: uppercase;
 }
-.demo-label i { width: .42rem; height: .42rem; border-radius: 50%; background: var(--champagne); box-shadow: 0 0 0 4px rgba(150,108,39,.14); }
+.proof-label i { width: .42rem; height: .42rem; border-radius: 50%; background: var(--fp32); box-shadow: 0 0 0 4px rgba(34,69,199,.12); }
 .proof-strip {
   display: grid; grid-template-columns: repeat(4,1fr); margin: 0; border: 1px solid rgba(255,255,255,.68);
   border-radius: 1.9rem; background: rgba(255,252,249,.78); box-shadow: var(--shadow-float);
@@ -172,9 +172,9 @@ img, svg { display: block; }
 .proof-strip__metric--blue dd { color: var(--fp32-deep); }
 .proof-strip__metric--orange dd { color: var(--int8-deep); }
 .proof-strip__metric > span { display: block; width: 100%; height: .33rem; margin-top: .7rem; overflow: hidden; border-radius: 999px; background: rgba(20,24,48,.1); }
-.proof-strip__metric > span i { display: block; width: 72%; height: 100%; border-radius: inherit; background: #aaafbf; }
-.proof-strip__metric--blue > span i { width: 94.82%; background: linear-gradient(90deg,#8ca5ff,var(--fp32)); }
-.proof-strip__metric--orange > span i { width: 94.47%; background: linear-gradient(90deg,#ffb39a,var(--int8)); }
+.proof-strip__metric > span i { display: block; height: 100%; border-radius: inherit; background: #aaafbf; }
+.proof-strip__metric--blue > span i { background: linear-gradient(90deg,#8ca5ff,var(--fp32)); }
+.proof-strip__metric--orange > span i { background: linear-gradient(90deg,#ffb39a,var(--int8)); }
 
 .hero-annotation {
   position: absolute; z-index: 3; display: grid; color: var(--ink-soft); font-family: var(--font-mono), monospace;
@@ -562,7 +562,7 @@ img, svg { display: block; }
   .proof-strip__metric:nth-child(3) { border-left: 0; }
   .proof-strip dd { font-size: 1.4rem; }
   .proof-strip__metric > span { display: none; }
-  .demo-label { margin-right: .5rem; }
+  .proof-label { margin-right: .5rem; }
   .signal-rail__inner { justify-content: flex-start; gap: .65rem; overflow: hidden; }
   .signal-rail__inner i { width: 1.25rem; flex: 0 0 auto; }
   .signal-rail__inner span { flex: 0 0 auto; }

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { ArrowRight, Braces, ChartNoAxesCombined, ScanSearch } from "lucide-react";
 
-import { CompressionHero } from "@/components/home/compression-hero";
+import { CompressionHero, type FeaturedRunSummary } from "@/components/home/compression-hero";
+import { FEATURED_RUN_HREF, FEATURED_RUN_ID } from "@/lib/featured-run";
+import { formatDelta, formatPValue, formatPercent } from "@/lib/format";
+import { getVerifiedReport } from "@/lib/verified-reports";
 
 const evidenceLayers = [
   {
@@ -49,9 +52,29 @@ const chapters = [
 ];
 
 export default function Home() {
+  const report = getVerifiedReport(FEATURED_RUN_ID);
+  if (!report) throw new Error(`Featured run ${FEATURED_RUN_ID} is not registered.`);
+
+  const featuredRun = {
+    href: FEATURED_RUN_HREF,
+    label: `Verified pipeline run · ${report.sample_count.toLocaleString()} paired examples`,
+    reference: {
+      precision: report.reference.precision,
+      value: formatPercent(report.reference.top1_accuracy),
+      fillPercent: report.reference.top1_accuracy * 100,
+    },
+    candidate: {
+      precision: report.candidate.precision,
+      value: formatPercent(report.candidate.top1_accuracy),
+      fillPercent: report.candidate.top1_accuracy * 100,
+    },
+    delta: formatDelta(report.accuracy_delta_pp),
+    pValue: formatPValue(report.significance.p_value),
+  } satisfies FeaturedRunSummary;
+
   return (
     <main id="main-content">
-      <CompressionHero />
+      <CompressionHero featuredRun={featuredRun} />
 
       <section className="signal-rail" aria-label="Fidelity validation workflow">
         <div className="page-shell signal-rail__inner">
@@ -97,8 +120,8 @@ export default function Home() {
               The dashboard starts with the decision, then lets reviewers move from plain language to
               the exact measurements behind it.
             </p>
-            <Link className="text-link text-link--light" href="/runs/demo">
-              Inspect the demo report <ArrowRight size={16} />
+            <Link className="text-link text-link--light" href={FEATURED_RUN_HREF}>
+              Inspect the verified report <ArrowRight size={16} />
             </Link>
           </div>
 
@@ -134,7 +157,7 @@ export default function Home() {
         <div className="page-shell closing-card">
           <div><p className="eyebrow eyebrow--light">Open the instrument</p><h2>See what changed.<br />Decide with evidence.</h2></div>
           <div className="closing-card__actions">
-            <Link className="button button--paper" href="/runs/demo">Explore a validation <ArrowRight size={17} /></Link>
+            <Link className="button button--paper" href={FEATURED_RUN_HREF}>View verified report <ArrowRight size={17} /></Link>
             <Link className="button button--ghost-light" href="/methods">Read the method</Link>
           </div>
         </div>

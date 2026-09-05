@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 
 import { LogoMark } from "@/components/brand/logo-mark";
+import { FEATURED_RUN_HREF } from "@/lib/featured-run";
 
 const navigation = [
   { href: "/product", label: "Product" },
@@ -32,7 +33,7 @@ export function SiteHeader() {
           <a href="https://github.com/divtandon/Fidelity" target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={13} /></a>
         </nav>
         <div className="site-header__actions">
-          <Link className="nav-cta" href="/runs/demo">Open demo <span aria-hidden="true">↗</span></Link>
+          <Link className="nav-cta" href={FEATURED_RUN_HREF}>View report <span aria-hidden="true">↗</span></Link>
           <button
             className="menu-button"
             type="button"
@@ -47,7 +48,7 @@ export function SiteHeader() {
       </div>
       <nav className={`mobile-nav${menuOpen ? " mobile-nav--open" : ""}`} id="mobile-menu" aria-label="Mobile navigation">
         {navigation.map((item) => <Link href={item.href} key={item.href} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
-        <Link href="/runs/demo" onClick={() => setMenuOpen(false)}>Open demo</Link>
+        <Link href={FEATURED_RUN_HREF} onClick={() => setMenuOpen(false)}>View verified report</Link>
         <a href="https://github.com/divtandon/Fidelity" target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>GitHub <ArrowUpRight size={14} /></a>
       </nav>
     </header>

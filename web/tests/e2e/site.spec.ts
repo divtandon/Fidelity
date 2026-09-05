@@ -18,6 +18,8 @@ function collectConsoleErrors(page: import("@playwright/test").Page) {
 }
 
 const accessibilityRoutes = ["/", "/product", "/methods", "/docs"] as const;
+const featuredRunId = "cifar10-resnet18-int8-seed2026";
+const featuredRunPath = `/runs/${featuredRunId}`;
 
 test.describe("public experience", () => {
   for (const [route, heading] of routeHeadings) {
@@ -70,7 +72,25 @@ test.describe("public experience", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: /Prove the model/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Explore a validation", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "View verified report", exact: true }).first()).toBeVisible();
+  });
+
+  test("primary calls to action lead to the verified portfolio run", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".site-header .nav-cta")).toHaveAttribute("href", featuredRunPath);
+    await expect(page.locator(".hero__actions .button--primary")).toHaveAttribute("href", featuredRunPath);
+    await expect(page.locator(".evidence-heading .text-link")).toHaveAttribute("href", featuredRunPath);
+    await expect(page.locator(".closing-card__actions .button--paper")).toHaveAttribute("href", featuredRunPath);
+    await expect(page.locator(".site-footer__links").getByRole("link", { name: "Verified report" })).toHaveAttribute("href", featuredRunPath);
+    await expect(page.locator(".site-footer__links").getByRole("link", { name: "Demo report" })).toHaveAttribute("href", "/runs/demo");
+
+    await page.goto("/product");
+    await expect(page.locator(".product-hero .button--primary")).toHaveAttribute("href", featuredRunPath);
+    await expect(page.locator(".next-step-card .button--paper")).toHaveAttribute("href", featuredRunPath);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.locator("#mobile-menu").getByRole("link", { name: "View verified report" })).toHaveAttribute("href", featuredRunPath);
   });
 
   test("reduced motion reveals every animated subpage narrative", async ({ page }) => {
@@ -121,5 +141,29 @@ test.describe("demo validation dashboard", () => {
   test("unknown run IDs use the scoped not-found state", async ({ page }) => {
     await page.goto("/runs/not-a-run");
     await expect(page.getByRole("heading", { level: 1, name: /That run does not exist/i })).toBeVisible();
+  });
+});
+
+test.describe("verified validation dashboard", () => {
+  test("presents computed evidence with provenance and a correctly named export", async ({ page }) => {
+    const errors = collectConsoleErrors(page);
+    await page.goto(featuredRunPath);
+
+    const main = page.locator("#main-content");
+    await expect(main).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: featuredRunId })).toBeVisible();
+    await expect(main.getByText("92.39%", { exact: true }).first()).toBeVisible();
+    await expect(main.getByText("92.38%", { exact: true }).first()).toBeVisible();
+    await expect(main.getByText("Pipeline-produced evidence", { exact: true })).toBeVisible();
+    await expect(page.locator(".demo-banner")).toHaveCount(0);
+    await expect(main.getByText(/Demo data.*interface preview only/i)).toHaveCount(0);
+
+    const accessibility = await new AxeBuilder({ page }).include("#main-content").analyze();
+    expect(accessibility.violations).toEqual([]);
+
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download computed JSON" }).first().click();
+    expect((await download).suggestedFilename()).toBe(`fidelity-${featuredRunId}.json`);
+    expect(errors).toEqual([]);
   });
 });
