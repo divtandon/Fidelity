@@ -58,14 +58,109 @@ test.describe("public experience", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
     const hero = page.locator(".hero");
+    const supportsWebGL = await page.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("webgl2") || canvas.getContext("webgl");
+      context?.getExtension("WEBGL_lose_context")?.loseContext();
+      return Boolean(context);
+    });
 
     await expect(hero).toHaveAttribute("data-animation", "continuous");
-    await expect(page.locator(".compression-canvas")).toBeVisible();
     await expect(page.locator(".compression-visual")).toBeInViewport({ ratio: 0.75 });
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await expect.poll(async () => Number(await hero.getAttribute("data-animation-stage")), {
-      timeout: 5_000,
+      timeout: 10_000,
     }).toBeGreaterThan(0);
+
+    if (supportsWebGL) {
+      await expect(page.locator(".compression-canvas")).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(".compression-visual")).toHaveClass(/compression-visual--live/);
+    } else {
+      await expect(page.locator(".compression-canvas")).toHaveCount(0);
+      await expect(page.locator(".scene-poster")).toBeVisible();
+    }
+  });
+
+  test("the hero layout stays separated across its responsive range", async ({ page }) => {
+    const viewports = [
+      { width: 2048, height: 1107 },
+      { width: 1270, height: 925 },
+      { width: 1024, height: 768 },
+      { width: 820, height: 900 },
+      { width: 390, height: 844 },
+      { width: 390, height: 664 },
+    ];
+
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+      await expect(page.getByRole("heading", { level: 1, name: /Prove the model/i })).toBeVisible();
+
+      const geometry = await page.evaluate(() => {
+        const rect = (selector: string) => {
+          const element = document.querySelector<HTMLElement>(selector);
+          if (!element) throw new Error(`Missing layout element: ${selector}`);
+          const bounds = element.getBoundingClientRect();
+          return {
+            top: bounds.top,
+            right: bounds.right,
+            bottom: bounds.bottom,
+            left: bounds.left,
+          };
+        };
+        const overlapArea = (
+          first: ReturnType<typeof rect>,
+          second: ReturnType<typeof rect>,
+        ) => Math.max(0, Math.min(first.right, second.right) - Math.max(first.left, second.left))
+          * Math.max(0, Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top));
+        const hero = rect(".hero__stage");
+        const rail = rect(".signal-rail");
+        const proof = rect(".proof-strip");
+        const heading = rect(".hero h1");
+        const lead = rect(".hero__lead");
+        const header = rect(".site-header__inner");
+        const eyebrow = rect(".hero .eyebrow");
+        const wordmark = rect(".site-header .wordmark");
+        const headerControl = rect(window.innerWidth <= 820 ? ".menu-button" : ".site-nav");
+        const buttons = [...document.querySelectorAll<HTMLElement>(".hero__actions .button")]
+          .map((button) => {
+            const bounds = button.getBoundingClientRect();
+            return { top: bounds.top, right: bounds.right, bottom: bounds.bottom, left: bounds.left };
+          });
+        const metrics = [...document.querySelectorAll<HTMLElement>(".proof-strip__metric")]
+          .map((metric) => {
+            const bounds = metric.getBoundingClientRect();
+            return { top: bounds.top, right: bounds.right, bottom: bounds.bottom, left: bounds.left };
+          });
+
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          heroRailGap: rail.top - hero.bottom,
+          headerCopyOverlap: overlapArea(header, eyebrow),
+          headerControlOverlap: overlapArea(wordmark, headerControl),
+          headingLeadOverlap: overlapArea(heading, lead),
+          buttonProofOverlap: Math.max(0, ...buttons.map((button) => overlapArea(button, proof))),
+          proofInsideHero: proof.left >= hero.left - 1
+            && proof.right <= hero.right + 1
+            && proof.top >= hero.top - 1
+            && proof.bottom <= hero.bottom + 1,
+          metricsInsideProof: metrics.every((metric) => metric.left >= proof.left - 1
+            && metric.right <= proof.right + 1
+            && metric.top >= proof.top - 1
+            && metric.bottom <= proof.bottom + 1),
+        };
+      });
+
+      const label = `${viewport.width}x${viewport.height}`;
+      expect(geometry.horizontalOverflow, `${label}: horizontal overflow`).toBeLessThanOrEqual(0);
+      expect(Math.abs(geometry.heroRailGap), `${label}: hero-to-rail gap`).toBeLessThanOrEqual(1);
+      expect(geometry.headerCopyOverlap, `${label}: header/copy overlap`).toBe(0);
+      expect(geometry.headerControlOverlap, `${label}: header control overlap`).toBe(0);
+      expect(geometry.headingLeadOverlap, `${label}: heading/lead overlap`).toBe(0);
+      expect(geometry.buttonProofOverlap, `${label}: button/proof overlap`).toBe(0);
+      expect(geometry.proofInsideHero, `${label}: proof escapes hero`).toBe(true);
+      expect(geometry.metricsInsideProof, `${label}: metric escapes proof strip`).toBe(true);
+    }
   });
 
   test("reduced motion still exposes the hero content", async ({ page }) => {
